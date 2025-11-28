@@ -61,8 +61,30 @@ public class LibationBowl extends Script {
 	private static final WorldPosition BOWL_STAGING_TILE = new WorldPosition(1457, 3189, 0);
 	private static final WorldPosition SHRINE_TILE       = new WorldPosition(1451, 3172, 0);
 	
-	private static final Point CLICK_ALDARIN = new Point(290, 521);
-	private static final Point CLICK_TEOMAT  = new Point(295, 394);
+	private static final Rectangle BARTENDER_AREA =
+			new Rectangle(1378, 2925, 3, 3);
+	
+	private static final Rectangle BARTENDER_APPROACH_AREA =
+			new Rectangle(1385, 2924, 6, 5);
+	
+	private static final Rectangle BANKER_AREA =
+			new Rectangle(1396, 2925, 3, 3);
+	
+	private static final Rectangle ALTAR_AREA =
+			new Rectangle(1433, 3147, 5, 5);
+	
+	private static final Rectangle SHRINE_AREA =
+			new Rectangle(1448, 3172, 5, 4);
+	
+	private static final Rectangle BOWL_AREA =
+			new Rectangle(1457, 3188, 1, 3);
+	
+	private static final Rectangle ALDARIN_RECT =
+			new Rectangle(273, 494, 27, 18);
+	private static final Rectangle TEOMAT_RECT =
+			new Rectangle(284, 375, 19, 20);
+	
+
 	
 	private static final int MIN_PRAYER_POINTS = 2;
 	
@@ -78,6 +100,7 @@ public class LibationBowl extends Script {
 	public LibationBowl(Object core) {
 		super(core);
 	}
+	
 	public Object getScriptOptions() {
 		return new ScriptOptions();
 	}
@@ -91,7 +114,6 @@ public class LibationBowl extends Script {
 		Scene scene = new Scene(ui);
 		getStageController().show(scene, "Libation Bowl Options", false);
 		
-		// Read checkbox state from the UI
 		useSunfire = ui.useSunfire();
 		
 		// ===== NORMAL STARTUP =====
@@ -185,7 +207,8 @@ public class LibationBowl extends Script {
 			return;
 		}
 		
-		sleep(random(150, 300));
+		// Frame-based delay instead of sleep
+		pollFramesHuman(() -> false, random(150, 300));
 		
 		if (!wine.interact()) {
 			log("LibationBowl", "Failed applying splinter to wine");
@@ -193,7 +216,7 @@ public class LibationBowl extends Script {
 		}
 		
 		// process the combine to prevent using on the same item
-		sleep(random(400, 700));
+		pollFramesHuman(() -> false, random(400, 700));
 	}
 	
 	// ========= BLESS WINE ==========
@@ -218,20 +241,20 @@ public class LibationBowl extends Script {
 		
 		RSObject altar = getObjectManager().getClosestObject(me, "Exposed altar");
 		if (altar == null) {
-			walkToPosition(ALTAR_TILE);
+			walkToArea(ALTAR_AREA);
 			return;
 		}
 		
 		Polygon poly = altar.getConvexHull();
 		if (poly == null) {
-			walkToPosition(ALTAR_TILE);
+			walkToArea(ALTAR_AREA);
 			return;
 		}
 		
 		Polygon resized = poly.getResized(0.7);
 		if (resized == null ||
 				getWidgetManager().insideGameScreenFactor(resized, Collections.emptyList()) < 0.2) {
-			walkToPosition(ALTAR_TILE);
+			walkToArea(ALTAR_AREA);
 			return;
 		}
 		
@@ -256,9 +279,9 @@ public class LibationBowl extends Script {
 		WorldPosition me = getWorldPosition();
 		if (me == null) return;
 		
-		// Always move to staging tile first to avoid pathing issues
+		// Always move to staging area first to avoid pathing issues
 		if (me.distanceTo(BOWL_STAGING_TILE) > 3) {
-			walkToPosition(BOWL_STAGING_TILE);
+			walkToArea(BOWL_AREA);
 			return;
 		}
 		
@@ -309,34 +332,33 @@ public class LibationBowl extends Script {
 		
 		RSObject shrine = getObjectManager().getClosestObject(me, "Shrine of Ralos");
 		if (shrine == null) {
-			walkToPosition(SHRINE_TILE);
+			walkToArea(SHRINE_AREA);
 			return;
 		}
 		
 		Polygon p = shrine.getConvexHull();
 		if (p == null) {
-			walkToPosition(SHRINE_TILE);
+			walkToArea(SHRINE_AREA);
 			return;
 		}
 		
 		Polygon resized = p.getResized(0.7);
 		if (resized == null ||
 				getWidgetManager().insideGameScreenFactor(resized, Collections.emptyList()) < 0.2) {
-			walkToPosition(SHRINE_TILE);
+			walkToArea(SHRINE_AREA);
 			return;
 		}
 		
 		log("LibationBowl", "Restoring prayer...");
 		shrine.interact("Bask");
 		
-		long until = System.currentTimeMillis() + 1200;
-		while (System.currentTimeMillis() < until) {
+		// Wait until prayer is above threshold, or timeout
+		pollFramesUntil(() -> {
 			Integer pr = safePrayer();
-			if (pr != null && pr > MIN_PRAYER_POINTS + 2) break;
-			sleep(150);
-		}
+			return pr != null && pr > MIN_PRAYER_POINTS + 2;
+		}, 1200);
 		
-		walkToPosition(BOWL_STAGING_TILE);
+		walkToArea(BOWL_AREA);
 	}
 	
 	// ========= BUYING WINE ==========
@@ -367,30 +389,37 @@ public class LibationBowl extends Script {
 		if (me == null)
 			return;
 		
-		// Approach from the east to avoid the door
+		// Approach from the east to avoid the door — use area instead of single tile
 		if (me.distanceTo(BARTENDER_APPROACH_TILE) > 10) {
-			walkToPosition(BARTENDER_APPROACH_TILE);
+			walkToArea(BARTENDER_APPROACH_AREA);
 			return;
 		}
 		
 		if (me.distanceTo(BARTENDER_TILE) > 5) {
-			walkToPosition(BARTENDER_TILE);
+			walkToArea(BARTENDER_AREA);
 			return;
 		}
 		
 		Polygon poly = getSceneProjector().getTilePoly(BARTENDER_TILE);
 		if (poly == null) {
-			walkToPosition(BARTENDER_TILE);
+			walkToArea(BARTENDER_AREA);
 			return;
 		}
 		
-		if (!getFinger().tap(poly.getResized(0.5), "Trade"))
+		Polygon resized = poly.getResized(0.5);
+		if (resized == null) {
+			walkToArea(BARTENDER_AREA);
+			return;
+		}
+		
+		if (!getFinger().tap(resized, "Trade"))
 			return;
 		
 		// Wait human-like for the shop to appear
-		submitHumanTask(() -> wineShop.isVisible(), random(2500, 4500));
+		pollFramesHuman(() -> wineShop != null && wineShop.isVisible(), random(2500, 4500));
 	}
 	
+	// ========= SHOP BUY LOOP ==========
 	private void handleWineShop(ItemGroupResult invBefore) {
 		
 		while (true) {
@@ -415,7 +444,7 @@ public class LibationBowl extends Script {
 			
 			wineItem.interact();
 			
-			boolean success = submitTask(() -> {
+			boolean success = pollFramesUntil(() -> {
 				ItemGroupResult after = getWidgetManager().getInventory().search(INVENTORY_IDS);
 				if (after == null) return false;
 				return after.getFreeSlots() < freeBefore ||
@@ -451,20 +480,26 @@ public class LibationBowl extends Script {
 		// Use the tile of the banker NPC to get a clickable polygon
 		Polygon poly = getSceneProjector().getTilePoly(BANKER_TILE);
 		
-		// If banker tile is off-screen / not clickable, move to a safe tile first
+		// If banker tile is off-screen / not clickable, move to a safe area first
 		if (poly == null ||
 				getWidgetManager().insideGameScreenFactor(poly, Collections.emptyList()) < 0.25) {
 			
-			log("LibationBowl", "Banker off-screen — walking to safe bank tile.");
-			walkToPosition(BANK_SAFE_TILE);
+			log("LibationBowl", "Banker off-screen — walking to banker area.");
+			walkToArea(BANKER_AREA);
+			return;
+		}
+		
+		Polygon resized = poly.getResized(0.4);
+		if (resized == null) {
+			walkToArea(BANKER_AREA);
 			return;
 		}
 		
 		// Banker tile is visible — click "Bank"
 		log("LibationBowl", "Banker visible — opening bank.");
-		getFinger().tap(poly.getResized(0.4), "Bank");
+		getFinger().tap(resized, "Bank");
 		
-		boolean opened = submitTask(() -> getWidgetManager().getBank().isVisible(), 5000);
+		boolean opened = pollFramesUntil(() -> getWidgetManager().getBank().isVisible(), 5000);
 		if (!opened) {
 			log("LibationBowl", "Bank failed to open.");
 			return;
@@ -477,7 +512,8 @@ public class LibationBowl extends Script {
 			getWidgetManager().getBank().deposit(EMPTY_JUG, bankable.getAmount(EMPTY_JUG));
 		}
 		
-		sleep(random(200, 400));
+		// Small human-like delay before closing
+		pollFramesHuman(() -> false, random(200, 400));
 		getWidgetManager().getBank().close();
 	}
 	
@@ -504,11 +540,17 @@ public class LibationBowl extends Script {
 			return;
 		}
 		
-		getFinger().tap(cube.getResized(0.5), "Travel");
+		Polygon resized = cube.getResized(0.5);
+		if (resized == null) {
+			walkToPosition(QUETZAL_TEOMAT);
+			return;
+		}
+		
+		getFinger().tap(resized, "Travel");
 		
 		// Small delay, then click Aldarin on the Quetzal map
-		sleep(random(700, 1200));
-		getFinger().tap(CLICK_ALDARIN);
+		pollFramesHuman(() -> false, random(700, 1200));
+		getFinger().tap(randomPointIn(ALDARIN_RECT));
 	}
 	
 	private void travelToTeomat() {
@@ -533,11 +575,17 @@ public class LibationBowl extends Script {
 			return;
 		}
 		
-		getFinger().tap(cube.getResized(0.5), "Travel");
+		Polygon resized = cube.getResized(0.5);
+		if (resized == null) {
+			walkToPosition(QUETZAL_ALDARIN);
+			return;
+		}
+		
+		getFinger().tap(resized, "Travel");
 		
 		// Small delay, then click Teomat on the Quetzal map
-		sleep(random(700, 1200));
-		getFinger().tap(CLICK_TEOMAT);
+		pollFramesHuman(() -> false, random(700, 1200));
+		getFinger().tap(randomPointIn(TEOMAT_RECT));
 	}
 	
 	// ========= HELPERS ==========
@@ -561,7 +609,8 @@ public class LibationBowl extends Script {
 				if (r != null)
 					return r;
 			} catch (Exception ignored) {}
-			sleep(120);
+			// Frame-based retry delay instead of sleep
+			pollFramesUntil(() -> false, 120);
 		}
 		return null;
 	}
@@ -580,6 +629,23 @@ public class LibationBowl extends Script {
 				.breakDistance(2);
 		
 		getWalker().walkTo(target, cfg.build());
+	}
+	
+
+	private void walkToArea(Rectangle area) {
+		if (area == null) return;
+		
+		int x = area.x + random(area.width);
+		int y = area.y + random(area.height);
+		WorldPosition target = new WorldPosition(x, y, 0);
+		walkToPosition(target);
+	}
+	
+	
+	private Point randomPointIn(Rectangle r) {
+		int x = r.x + random(r.width);
+		int y = r.y + random(r.height);
+		return new Point(x, y);
 	}
 	
 	// ========= XP Tracker ==========
