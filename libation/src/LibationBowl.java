@@ -23,7 +23,7 @@ import java.util.Set;
 @ScriptDefinition(
 		name = "LibationBowl",
 		author = "Sainty",
-		version = 1.0,
+		version = 1.2,
 		description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
 		skillCategory = SkillCategory.PRAYER
 )
