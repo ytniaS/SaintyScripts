@@ -113,8 +113,8 @@ public class pestcontrol extends Script {
 	
 	@Override
 	public void onStart() {
-		addCustomMap(new MapDefinition(2624, 2560, 64, 64, 0, 0));
-		addCustomMap(new MapDefinition(2624, 2624, 64, 64, 0, 0));
+		addCustomMap(new MapDefinition(2624, 2560, 64, 64, 0, 0)); // pest control island
+		addCustomMap(new MapDefinition(2624, 2624, 64, 64, 0, 0)); // void knight outpost
 
 		
 		PestOptions opts = new PestOptions();
@@ -211,8 +211,8 @@ public class pestcontrol extends Script {
 		
 		List<WorldPosition> targets = npcs.stream()
 				.filter(COMBAT_AREA::contains)
-				.filter(p -> !p.equals(VOID_KNIGHT_TILE))
-				.filter(p -> !p.equals(SQUIRE_TILE))
+				.filter(p -> !p.equals(VOID_KNIGHT_TILE)) // don't check npcs
+				.filter(p -> !p.equals(SQUIRE_TILE)) // don't check npcs
 				.sorted(Comparator.comparingDouble(p -> p.distanceTo(me)))
 				.limit(6)
 				.collect(Collectors.toList());
@@ -227,7 +227,7 @@ public class pestcontrol extends Script {
 			if (!getWidgetManager().insideGameScreen(poly, Collections.emptyList()))
 				continue;
 			
-			pollFramesHuman(() -> false, random(60, 180));
+			pollFramesHuman(() -> false, random(20, 70));
 			
 			if (getFinger().tapGameScreen(poly, "Attack")) {
 				attacking = true;
@@ -433,6 +433,11 @@ public class pestcontrol extends Script {
 		return new int[]{REGION_LOBBY, REGION_GAME};
 	}
 	
+	@Override
+	public boolean canBreak() {
+		return !inGame && !boardingInProgress && !awaitingResult;
+	}
+	
 	
 	@Override
 	public void onPaint(Canvas c) {
@@ -450,8 +455,8 @@ public class pestcontrol extends Script {
 		           10, 56, Color.WHITE.getRGB(), f);
 		c.drawText("Boat: " + selectedBoat.name, 10, 72, Color.WHITE.getRGB(), f);
 		c.drawText("Games won: " + gamesWon, 10, 88, Color.WHITE.getRGB(), f);
-		c.drawText("Games lost: " + gamesLost, 10, 120, Color.WHITE.getRGB(), f);
 		c.drawText("Points: " + totalPoints, 10, 104, Color.WHITE.getRGB(), f);
+		c.drawText("Games lost: " + gamesLost, 10, 120, Color.WHITE.getRGB(), f);
 	}
 	
 	private static class PestOptions extends VBox {
