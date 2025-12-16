@@ -25,10 +25,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @ScriptDefinition(
-		name = "Lazy PestControl",
+		name = "Dumb PestControl",
 		author = "Sainty",
-		version = 1.0,
-		description = "Lazy Pest control - fights monsters around the void knight",
+		version = 1.1,
+		description = "Dumb Pest control - fights monsters around the void knight",
 		skillCategory = SkillCategory.COMBAT
 )
 public class pestcontrol extends Script {
@@ -39,7 +39,6 @@ public class pestcontrol extends Script {
 	
 	private static final int BOAT_DECK_OBJECT = 14256;
 	
-	// Combat area
 	private static final RectangleArea COMBAT_AREA =
 			new RectangleArea(2645, 2587, 24, 20, 0);
 	
@@ -52,14 +51,12 @@ public class pestcontrol extends Script {
 	private static final WorldPosition SQUIRE_TILE =
 			new WorldPosition(2655, 2607, 0);
 	
-	// Timing
 	private static final int BOARD_CLICK_COOLDOWN_MS = 3500;
 	private static final int BOARDING_MAX_MS = 65_000;
 	private static final int SCENE_STABLE_TIME = 600;
 	private static final int RECOVER_COOLDOWN_MS = 1200;
 	private static final int RESULT_OBSERVE_TIME = 2000;
 	
-	// State tracking
 	private long lastBoardClick = 0;
 	private long boardingStart = 0;
 	private boolean boardingInProgress = false;
@@ -82,6 +79,8 @@ public class pestcontrol extends Script {
 	
 	private int gamesWon = 0;
 	private int totalPoints = 0;
+	private int gamesLost = 0;
+	private boolean winDetected = false;
 	
 	private int lastRegion = -1;
 	private boolean awaitingResult = false;
@@ -114,14 +113,9 @@ public class pestcontrol extends Script {
 	
 	@Override
 	public void onStart() {
-		
-		// Custom map definitions to try help loading, no clue if this many helps lol
-		addCustomMap(new MapDefinition(2624, 2560, 63, 57, 0, 0));
-		addCustomMap(new MapDefinition(2645, 2600, 25, 25, 0, 0));
-		addCustomMap(new MapDefinition(2624, 2562, 64, 61, 0, 0));
-		addCustomMap(new MapDefinition(2562, 2498, 60, 124, 0, 0));
-		addCustomMap(new MapDefinition(2624, 2560, 63, 57, 3, 0));
-		addCustomMap(new MapDefinition(2645, 2600, 25, 25, 3, 0));
+		addCustomMap(new MapDefinition(2624, 2560, 64, 64, 0, 0));
+		addCustomMap(new MapDefinition(2624, 2624, 63, 63, 0, 0));
+
 		
 		PestOptions opts = new PestOptions();
 		getStageController().show(new Scene(opts), "Pest Control", true);
@@ -139,7 +133,6 @@ public class pestcontrol extends Script {
 		
 		int region = me.getRegionID();
 		
-
 		if (lastRegion == REGION_GAME && region == REGION_LOBBY) {
 			awaitingResult = true;
 			resultProcessed = false;
@@ -159,7 +152,6 @@ public class pestcontrol extends Script {
 				return 300;
 			}
 			
-
 			if (!instanceSettled) {
 				if (System.currentTimeMillis() < instanceResolveUntil)
 					return 300;
@@ -178,16 +170,6 @@ public class pestcontrol extends Script {
 		return random(40, 80);
 	}
 	
-	@Override
-	public boolean canBreak() {
-		return !boardingInProgress && !isOnBoat() && !inGame && !awaitingResult;
-	}
-	
-	@Override
-	public int[] regionsToPrioritise() {
-		return new int[]{REGION_LOBBY, REGION_GAME};
-	}
-	
 	private void handleGame() {
 		
 		if (!sceneIsStable())
@@ -195,9 +177,11 @@ public class pestcontrol extends Script {
 		
 		trackDeath();
 		
-
-		if (!COMBAT_AREA.contains(getWorldPosition())) {
-			
+		WorldPosition me = getWorldPosition();
+		if (me == null)
+			return;
+		
+		if (!COMBAT_AREA.contains(me)) {
 			attacking = false;
 			targetOverlay = null;
 			
@@ -205,11 +189,10 @@ public class pestcontrol extends Script {
 				return;
 			
 			lastRecoverAttempt = System.currentTimeMillis();
-			tryWalkTo(randomIn(VOID_KNIGHT_RECT));
+			tryWalkInsideCombatArea(randomIn(VOID_KNIGHT_RECT));
 			return;
 		}
 		
-
 		if (attacking && targetOverlay != null && targetOverlay.isVisible())
 			return;
 		
@@ -225,7 +208,6 @@ public class pestcontrol extends Script {
 		List<WorldPosition> npcs =
 				getWidgetManager().getMinimap().getNPCPositions().asList();
 		
-		// Filter and sort targets
 		List<WorldPosition> targets = npcs.stream()
 				.filter(COMBAT_AREA::contains)
 				.filter(p -> !p.equals(VOID_KNIGHT_TILE))
@@ -244,7 +226,8 @@ public class pestcontrol extends Script {
 			if (!getWidgetManager().insideGameScreen(poly, Collections.emptyList()))
 				continue;
 			
-
+			pollFramesHuman(() -> false, random(60, 180));
+			
 			if (getFinger().tapGameScreen(poly, "Attack")) {
 				attacking = true;
 				targetOverlay = new HealthOverlay(this);
@@ -254,24 +237,30 @@ public class pestcontrol extends Script {
 		return false;
 	}
 	
-	private boolean tryWalkTo(WorldPosition pos) {
+	private boolean tryWalkInsideCombatArea(WorldPosition target) {
 		
-		if (!instanceSettled)
+		if (!instanceSettled || target == null)
 			return false;
 		
-		if (System.currentTimeMillis() - lastWalkAt < 1000)
-			return false;
+		if (!COMBAT_AREA.contains(target))
+			target = randomIn(VOID_KNIGHT_RECT);
+		
+		long now = System.currentTimeMillis();
+		if (now - lastWalkAt < 1000)
+			return true;
 		
 		WalkConfig cfg = new WalkConfig.Builder()
-				.tileRandomisationRadius(2)
-				.breakDistance(2)
+				.tileRandomisationRadius(1)
+				.breakDistance(1)
 				.build();
 		
-		boolean ok = getWalker().walkTo(pos, cfg);
-		if (ok)
-			lastWalkAt = System.currentTimeMillis();
+		boolean issued = getWalker().walkTo(target, cfg);
+		if (issued) {
+			lastWalkAt = now;
+			pollFramesHuman(() -> false, random(60, 200));
+		}
 		
-		return ok;
+		return true;
 	}
 	
 	private WorldPosition randomIn(Rectangle r) {
@@ -300,26 +289,29 @@ public class pestcontrol extends Script {
 			return;
 		}
 		
-
 		if (getWorldPosition().distanceTo(selectedBoat.plank) > 5) {
-			tryWalkTo(selectedBoat.plank);
+			tryWalkInsideCombatArea(selectedBoat.plank);
 			return;
 		}
 		
 		if (System.currentTimeMillis() - lastBoardClick < BOARD_CLICK_COOLDOWN_MS)
 			return;
 		
-
-		Polygon cube = getSceneProjector().getTileCube(selectedBoat.plank, 100);
+		Polygon cube = getSceneProjector().getTileCube(selectedBoat.plank, 60);
 		if (cube == null)
 			return;
 		
-		Polygon click = cube.getResized(0.7);
+		Polygon click = cube.getResized(0.35);
 		if (!getWidgetManager().insideGameScreen(click, Collections.emptyList()))
 			return;
 		
-
-		boolean crossed = getFinger().tapGameScreen(click, menu -> menu.stream() .filter(m -> m.getRawText() != null && m.getRawText().toLowerCase().startsWith("cross")) .findFirst() .orElse(null) );
+		boolean crossed = getFinger().tapGameScreen(click, menu ->
+				                                            menu.stream()
+						                                            .filter(m -> m.getRawText() != null &&
+								                                            m.getRawText().toLowerCase().startsWith("cross"))
+						                                            .findFirst()
+						                                            .orElse(null)
+		                                           );
 		
 		if (crossed) {
 			lastBoardClick = System.currentTimeMillis();
@@ -341,7 +333,6 @@ public class pestcontrol extends Script {
 		if (current != null && current == PEST_CONTROL_WORLD)
 			return false;
 		
-		// Force hop to a PC world
 		getProfileManager().forceHop(worlds ->
 				                             worlds.stream()
 						                             .filter(w -> w != null && w.getId() == PEST_CONTROL_WORLD)
@@ -357,7 +348,6 @@ public class pestcontrol extends Script {
 		if (me == null)
 			return false;
 		
-
 		List<RSObject> decks = getObjectManager().getObjects(BOAT_DECK_OBJECT);
 		if (decks == null || decks.isEmpty())
 			return false;
@@ -380,23 +370,24 @@ public class pestcontrol extends Script {
 		
 		if (dialogue != null && dialogue.isVisible()) {
 			var text = dialogue.getText();
-			// Check dialogue for win text
 			if (text.isFound() &&
 					text.get().toLowerCase().contains("void knight commendation")) {
 				
 				gamesWon++;
-				// Extract points
 				String digits = text.get().replaceAll("\\D+", "");
 				totalPoints += digits.isEmpty()
 				               ? selectedBoat.points
 				               : Integer.parseInt(digits);
 				foundWin = true;
+				winDetected = true;
 			}
 		}
 		
-
 		if (foundWin ||
 				System.currentTimeMillis() - awaitingResultStart > RESULT_OBSERVE_TIME) {
+			
+			if (!winDetected)
+				gamesLost++;
 			
 			awaitingResult = false;
 			resultProcessed = true;
@@ -408,7 +399,6 @@ public class pestcontrol extends Script {
 	private boolean sceneIsStable() {
 		
 		WorldPosition now = getWorldPosition();
-		// Check if position is stable
 		if (!Objects.equals(now, lastStablePos)) {
 			lastStablePos = now;
 			lastStableTime = System.currentTimeMillis();
@@ -424,11 +414,10 @@ public class pestcontrol extends Script {
 			return;
 		
 		if (lastHp != null) {
-
+			
 			if (lastHp > 0 && hp == 0)
 				deathFlag = true;
 			
-			// Reset state after respawn/heal
 			if (deathFlag && lastHp == 0 && hp > 0) {
 				attacking = false;
 				targetOverlay = null;
@@ -443,19 +432,18 @@ public class pestcontrol extends Script {
 		
 		Font f = new Font("Arial", Font.PLAIN, 13);
 		
-		// Draw overlay box
 		c.fillRect(6, 20, 240, 110, 0x66000000, 0.7);
 		c.drawRect(6, 20, 240, 110, Color.WHITE.getRGB());
 		
 		long run = System.currentTimeMillis() - startTime;
 		long s = run / 1000, m = s / 60, h = m / 60;
 		
-		// Display stats
 		c.drawText("Pest Control", 10, 40, Color.WHITE.getRGB(), f);
 		c.drawText("Time: " + String.format("%02d:%02d:%02d", h, m % 60, s % 60),
 		           10, 56, Color.WHITE.getRGB(), f);
 		c.drawText("Boat: " + selectedBoat.name, 10, 72, Color.WHITE.getRGB(), f);
 		c.drawText("Games won: " + gamesWon, 10, 88, Color.WHITE.getRGB(), f);
+		c.drawText("Games lost: " + gamesLost, 10, 120, Color.WHITE.getRGB(), f);
 		c.drawText("Points: " + totalPoints, 10, 104, Color.WHITE.getRGB(), f);
 	}
 	
