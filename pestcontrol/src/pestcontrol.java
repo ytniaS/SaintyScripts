@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
 		name = "Dumb PestControl",
 		author = "Sainty",
-		version = 1.1,
+		version = 1.2,
 		description = "Dumb Pest control - fights monsters around the void knight",
 		skillCategory = SkillCategory.COMBAT
 )
@@ -114,7 +114,7 @@ public class pestcontrol extends Script {
 	@Override
 	public void onStart() {
 		addCustomMap(new MapDefinition(2624, 2560, 64, 64, 0, 0));
-		addCustomMap(new MapDefinition(2624, 2624, 63, 63, 0, 0));
+		addCustomMap(new MapDefinition(2624, 2624, 64, 64, 0, 0));
 
 		
 		PestOptions opts = new PestOptions();
@@ -139,6 +139,7 @@ public class pestcontrol extends Script {
 			awaitingResultStart = System.currentTimeMillis();
 			boardingInProgress = false;
 			inGame = true;
+			winDetected = false;
 		}
 		
 		lastRegion = region;
@@ -426,6 +427,12 @@ public class pestcontrol extends Script {
 		}
 		lastHp = hp;
 	}
+	
+	@Override
+	public int[] regionsToPrioritise() {
+		return new int[]{REGION_LOBBY, REGION_GAME};
+	}
+	
 	
 	@Override
 	public void onPaint(Canvas c) {
