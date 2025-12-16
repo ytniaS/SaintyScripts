@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/SaintyScripts.iml" filepath="$PROJECT_DIR$/SaintyScripts.iml" />
       <module fileurl="file://$PROJECT_DIR$/libation/libation.iml" filepath="$PROJECT_DIR$/libation/libation.iml" />
+      <module fileurl="file://$PROJECT_DIR$/pestcontrol/pestcontrol.iml" filepath="$PROJECT_DIR$/pestcontrol/pestcontrol.iml" />
     </modules>
   </component>
 </project>
