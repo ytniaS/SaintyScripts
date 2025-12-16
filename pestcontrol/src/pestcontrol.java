@@ -290,11 +290,12 @@ public class pestcontrol extends Script {
 			return;
 		}
 		
-		if (getWorldPosition().distanceTo(selectedBoat.plank) > 5) {
-			tryWalkInsideCombatArea(selectedBoat.plank);
+		WorldPosition me = getWorldPosition();
+		if (me.distanceTo(selectedBoat.plank) > 3) {
+			tryWalkToLobby(selectedBoat.plank);
 			return;
 		}
-		
+
 		if (System.currentTimeMillis() - lastBoardClick < BOARD_CLICK_COOLDOWN_MS)
 			return;
 		
@@ -342,6 +343,28 @@ public class pestcontrol extends Script {
 		                            );
 		return true;
 	}
+	
+	private boolean tryWalkToLobby(WorldPosition target) {
+		if (target == null)
+			return false;
+		
+		long now = System.currentTimeMillis();
+		if (now - lastWalkAt < 1200)
+			return true;
+		
+		WalkConfig cfg = new WalkConfig.Builder()
+				.tileRandomisationRadius(1)
+				.breakDistance(1)
+				.build();
+		
+		boolean issued = getWalker().walkTo(target, cfg);
+		if (issued) {
+			lastWalkAt = now;
+			pollFramesHuman(() -> false, random(60, 160));
+		}
+		return true;
+	}
+	
 	
 	private boolean isOnBoat() {
 		
