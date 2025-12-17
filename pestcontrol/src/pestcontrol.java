@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
 		name = "Dumb PestControl",
 		author = "Sainty",
-		version = 1.2,
+		version = 1.3,
 		description = "Dumb Pest control - fights monsters around the void knight",
 		skillCategory = SkillCategory.COMBAT
 )
@@ -50,6 +50,16 @@ public class pestcontrol extends Script {
 	
 	private static final WorldPosition SQUIRE_TILE =
 			new WorldPosition(2655, 2607, 0);
+	
+	private static final int EDGE_BUFFER = 2;
+	private static final RectangleArea SAFE_COMBAT_AREA =
+			new RectangleArea(
+					COMBAT_AREA.getX() + EDGE_BUFFER,
+					COMBAT_AREA.getY() + EDGE_BUFFER,
+					COMBAT_AREA.getWidth() - (EDGE_BUFFER * 2),
+					COMBAT_AREA.getHeight() - (EDGE_BUFFER * 2),
+					0
+			);
 	
 	private static final int BOARD_CLICK_COOLDOWN_MS = 3500;
 	private static final int BOARDING_MAX_MS = 65_000;
@@ -181,6 +191,20 @@ public class pestcontrol extends Script {
 		WorldPosition me = getWorldPosition();
 		if (me == null)
 			return;
+		
+		if (!SAFE_COMBAT_AREA.contains(me)) {
+			attacking = false;
+			targetOverlay = null;
+			
+			if (System.currentTimeMillis() - lastRecoverAttempt < RECOVER_COOLDOWN_MS)
+				return;
+			
+			lastRecoverAttempt = System.currentTimeMillis();
+			
+			tryWalkInsideCombatArea(randomIn(VOID_KNIGHT_RECT));
+			return;
+		}
+		
 		
 		if (!COMBAT_AREA.contains(me)) {
 			attacking = false;
