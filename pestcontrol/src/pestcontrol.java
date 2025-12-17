@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
 		name = "Dumb PestControl",
 		author = "Sainty",
-		version = 1.3,
+		version = 1.5,
 		description = "Dumb Pest control - fights monsters around the void knight",
 		skillCategory = SkillCategory.COMBAT
 )
@@ -62,7 +62,7 @@ public class pestcontrol extends Script {
 			);
 	
 	private static final int BOARD_CLICK_COOLDOWN_MS = 3500;
-	private static final int BOARDING_MAX_MS = 65_000;
+	private static final int BOARDING_MAX_MS = 95_000;
 	private static final int SCENE_STABLE_TIME = 600;
 	private static final int RECOVER_COOLDOWN_MS = 1200;
 	private static final int RESULT_OBSERVE_TIME = 2000;
@@ -86,6 +86,10 @@ public class pestcontrol extends Script {
 	
 	private long lastWalkAt = 0;
 	private long lastRecoverAttempt = 0;
+	
+
+	private boolean recoveringToCombat = false;
+	private WorldPosition recoverTarget = null;
 	
 	private int gamesWon = 0;
 	private int totalPoints = 0;
@@ -125,7 +129,6 @@ public class pestcontrol extends Script {
 	public void onStart() {
 		addCustomMap(new MapDefinition(2624, 2560, 64, 64, 0, 0)); // pest control island
 		addCustomMap(new MapDefinition(2624, 2624, 64, 64, 0, 0)); // void knight outpost
-
 		
 		PestOptions opts = new PestOptions();
 		getStageController().show(new Scene(opts), "Pest Control", true);
@@ -150,6 +153,10 @@ public class pestcontrol extends Script {
 			boardingInProgress = false;
 			inGame = true;
 			winDetected = false;
+			
+
+			recoveringToCombat = false;
+			recoverTarget = null;
 		}
 		
 		lastRegion = region;
@@ -192,31 +199,35 @@ public class pestcontrol extends Script {
 		if (me == null)
 			return;
 		
+
+		if (recoveringToCombat && SAFE_COMBAT_AREA.contains(me)) {
+			recoveringToCombat = false;
+			recoverTarget = null;
+		}
+		
+
 		if (!SAFE_COMBAT_AREA.contains(me)) {
 			attacking = false;
 			targetOverlay = null;
 			
+	
+			if (recoveringToCombat)
+				return;
+			
 			if (System.currentTimeMillis() - lastRecoverAttempt < RECOVER_COOLDOWN_MS)
 				return;
 			
 			lastRecoverAttempt = System.currentTimeMillis();
 			
-			tryWalkInsideCombatArea(randomIn(VOID_KNIGHT_RECT));
+	
+			recoverTarget = randomIn(VOID_KNIGHT_RECT);
+			recoveringToCombat = true;
+			
+			tryWalkInsideCombatArea(recoverTarget);
 			return;
 		}
 		
-		
-		if (!COMBAT_AREA.contains(me)) {
-			attacking = false;
-			targetOverlay = null;
-			
-			if (System.currentTimeMillis() - lastRecoverAttempt < RECOVER_COOLDOWN_MS)
-				return;
-			
-			lastRecoverAttempt = System.currentTimeMillis();
-			tryWalkInsideCombatArea(randomIn(VOID_KNIGHT_RECT));
-			return;
-		}
+
 		
 		if (attacking && targetOverlay != null && targetOverlay.isVisible())
 			return;
@@ -271,6 +282,8 @@ public class pestcontrol extends Script {
 			target = randomIn(VOID_KNIGHT_RECT);
 		
 		long now = System.currentTimeMillis();
+		
+
 		if (now - lastWalkAt < 1000)
 			return true;
 		
@@ -319,7 +332,7 @@ public class pestcontrol extends Script {
 			tryWalkToLobby(selectedBoat.plank);
 			return;
 		}
-
+		
 		if (System.currentTimeMillis() - lastBoardClick < BOARD_CLICK_COOLDOWN_MS)
 			return;
 		
@@ -347,6 +360,10 @@ public class pestcontrol extends Script {
 			inGame = true;
 			instanceSettled = false;
 			instanceResolveUntil = System.currentTimeMillis() + random(4500, 6000);
+			
+
+			recoveringToCombat = false;
+			recoverTarget = null;
 		}
 	}
 	
@@ -388,7 +405,6 @@ public class pestcontrol extends Script {
 		}
 		return true;
 	}
-	
 	
 	private boolean isOnBoat() {
 		
@@ -441,6 +457,10 @@ public class pestcontrol extends Script {
 			resultProcessed = true;
 			inGame = false;
 			instanceSettled = false;
+			
+
+			recoveringToCombat = false;
+			recoverTarget = null;
 		}
 	}
 	
@@ -470,6 +490,10 @@ public class pestcontrol extends Script {
 				attacking = false;
 				targetOverlay = null;
 				deathFlag = false;
+				
+
+				recoveringToCombat = false;
+				recoverTarget = null;
 			}
 		}
 		lastHp = hp;
@@ -484,7 +508,6 @@ public class pestcontrol extends Script {
 	public boolean canBreak() {
 		return !inGame && !boardingInProgress && !awaitingResult;
 	}
-	
 	
 	@Override
 	public void onPaint(Canvas c) {
