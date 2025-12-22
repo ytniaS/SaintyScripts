@@ -23,7 +23,7 @@ import java.util.Set;
 @ScriptDefinition(
 		name = "LibationBowl",
 		author = "Sainty",
-		version = 1.2,
+		version = 1.3,
 		description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -351,6 +351,8 @@ public class LibationBowl extends Script {
 		
 		log("LibationBowl", "Restoring prayer...");
 		shrine.interact("Bask");
+		
+		pollFramesHuman(() -> false, random(700, 1000));
 		
 		// Wait until prayer is above threshold, or timeout
 		pollFramesUntil(() -> {
