@@ -16,7 +16,7 @@ import java.util.*;
 @ScriptDefinition(
 		name = "Bone Blesser",
 		author = "Sainty",
-		version = 1.3,
+		version = 1.4,
 		description = "Unnotes, blesses and chisels bones.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -24,6 +24,9 @@ public class boneBlesser extends Script {
 	
 	private static final int REGION_TEOMAT = 5681;
 	private static final int CHISEL_ID = 1755;
+	private static final Set<Integer> COIN_SET =
+			Collections.singleton(995);
+
 	
 	private static final Rectangle ALTAR_AREA =
 			new Rectangle(1433, 3147, 5, 5);
@@ -57,9 +60,11 @@ public class boneBlesser extends Script {
 			confirm.getScene().getWindow().hide();
 			
 			INV_IDS.clear();
-			INV_IDS.add(selectedBone.unblessedId);
-			INV_IDS.add(selectedBone.notedId);
-			INV_IDS.add(selectedBone.blessedId);
+			for (BoneType type : BoneType.values()) {
+				INV_IDS.add(type.unblessedId);
+				INV_IDS.add(type.notedId);
+				INV_IDS.add(type.blessedId);
+			}
 			INV_IDS.add(CHISEL_ID);
 		});
 		
@@ -75,6 +80,16 @@ public class boneBlesser extends Script {
 	@Override
 	public int[] regionsToPrioritise() {
 		return new int[]{REGION_TEOMAT};
+	}
+	
+	private static final Set<Integer> ALL_BONE_IDS = new HashSet<>();
+	
+	static {
+		for (BoneType type : BoneType.values()) {
+			ALL_BONE_IDS.add(type.unblessedId);
+			ALL_BONE_IDS.add(type.notedId);
+			ALL_BONE_IDS.add(type.blessedId);
+		}
 	}
 	
 	private boolean recentlyMoved() {
@@ -121,6 +136,40 @@ public class boneBlesser extends Script {
 				p.getY() <  r.y + r.height;
 	}
 	
+	private boolean validateRequirements(ItemGroupResult inv) {
+		ItemGroupResult coinInv =
+				getWidgetManager().getInventory().search(COIN_SET);
+		
+		ItemSearchResult coins = coinInv == null ? null : coinInv.getItem(995);
+		
+		if (coins == null || coins.getStackAmount() < 10) {
+			log("BoneBlesser", "Stopping: Less than 10 coins remaining.");
+			stop();
+			return false;
+		}
+		
+		if (inv.getItem(CHISEL_ID) == null) {
+			log("BoneBlesser", "Stopping: No chisel found in inventory.");
+			stop();
+			return false;
+		}
+		
+		if (!hasAnyBones()) {
+			log("BoneBlesser", "Stopping: No bones of any type found.");
+			stop();
+			return false;
+		}
+		
+		
+		return true;
+	}
+	
+	private boolean hasAnyBones() {
+		ItemGroupResult bones =
+				getWidgetManager().getInventory().search(ALL_BONE_IDS);
+		return bones != null && !bones.isEmpty();
+	}
+
 	@Override
 	public int poll() {
 		
@@ -139,6 +188,10 @@ public class boneBlesser extends Script {
 		ItemGroupResult inv = getWidgetManager().getInventory().search(INV_IDS);
 		if (inv == null)
 			return random(120, 180);
+		
+		if (!validateRequirements(inv))
+			return -1;
+
 		
 		ItemSearchResult unblessed = inv.getItem(selectedBone.unblessedId);
 		ItemSearchResult noted = inv.getItem(selectedBone.notedId);
