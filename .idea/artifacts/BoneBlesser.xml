@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="BoneBlesser">
+    <output-path>$PROJECT_DIR$/out/artifacts/boneBlesser</output-path>
+    <root id="archive" name="BoneBlesser.jar">
+      <element id="module-output" name="BoneBlesser" />
+    </root>
+  </artifact>
+</component>

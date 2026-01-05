@@ -90,6 +90,7 @@ public class LibationBowl extends Script {
 	
 	// ========= STATE ==========
 	private boolean useSunfire = false;
+	private boolean sunfireProcessing = false;
 	private XPTracker prayerXP;
 	
 	private static final Set<Integer> INVENTORY_IDS = new HashSet<>();
@@ -197,27 +198,38 @@ public class LibationBowl extends Script {
 		ItemSearchResult wine     = inv.getItem(JUG_OF_WINE);
 		ItemSearchResult pestle   = inv.getItem(PESTLE_AND_MORTAR);
 		
+		// Nothing to do
 		if (splinter == null || wine == null || pestle == null)
 			return;
 		
-		log("LibationBowl", "Creating Sunfire wine...");
+		// Already processing → wait until all wine is gone
+		if (sunfireProcessing) {
+			if (inv.getItem(JUG_OF_WINE) == null) {
+				sunfireProcessing = false; // finished
+				log("LibationBowl", "Finished Sunfire wine batch");
+			}
+			return;
+		}
 		
+		log("LibationBowl", "Starting Sunfire wine processing...");
+		
+		// Start the combine ONCE
 		if (!splinter.interact()) {
 			log("LibationBowl", "Failed selecting Sunfire Splinter");
 			return;
 		}
 		
-		// Frame-based delay instead of sleep
-		pollFramesHuman(() -> false, random(150, 300));
+		pollFramesHuman(() -> false, random(120, 200));
 		
 		if (!wine.interact()) {
 			log("LibationBowl", "Failed applying splinter to wine");
 			return;
 		}
 		
-		// process the combine to prevent using on the same item
-		pollFramesHuman(() -> false, random(400, 700));
+		// Mark as processing so we don't restart animation
+		sunfireProcessing = true;
 	}
+
 	
 	// ========= BLESS WINE ==========
 	private void blessWine() {
