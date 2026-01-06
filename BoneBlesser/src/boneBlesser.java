@@ -2,21 +2,23 @@ package com.osmb.script.boneblesser;
 
 import com.osmb.api.item.*;
 import com.osmb.api.location.position.types.WorldPosition;
-import com.osmb.api.scene.RSObject;
 import com.osmb.api.script.*;
 import com.osmb.api.shape.*;
+import com.osmb.api.visual.drawing.Canvas;
 import com.osmb.api.walker.WalkConfig;
+import com.osmb.api.scene.RSObject;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
-
 import java.util.*;
+
+
 
 @ScriptDefinition(
 		name = "Bone Blesser",
 		author = "Sainty",
-		version = 1.4,
+		version = 1.8,
 		description = "Unnotes, blesses and chisels bones.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -24,24 +26,47 @@ public class boneBlesser extends Script {
 	
 	private static final int REGION_TEOMAT = 5681;
 	private static final int CHISEL_ID = 1755;
-	private static final Set<Integer> COIN_SET =
-			Collections.singleton(995);
-
 	
 	private static final Rectangle ALTAR_AREA =
 			new Rectangle(1433, 3147, 5, 5);
 	
-	private static final long WALK_COOLDOWN_MS = 1200;
+	private static final Rectangle VIRILIS_RECT =
+			new Rectangle(1441, 3154, 5, 4);
+	
+	private static final int BONE_SHARDS_ID = 29381;
+	
+	private long scriptStartTime;
+	private int totalShards;
+	private int lastShardCount = -1;
+	
+	private static final long WALK_COOLDOWN_MS = 3200;
 	private static final long STABLE_MS = 500;
-	private static final long CHISEL_COOLDOWN_MS = 800;
+	private static final long UNNOTE_COOLDOWN_MS = 1200;
+	private static final long BLESS_COOLDOWN_MS = 6000;
+	private static final long DEBUG_LOG_MS = 2000;
+	private static final java.awt.Font PAINT_FONT =
+			new java.awt.Font("Arial", java.awt.Font.PLAIN, 12);
 	
 	private BoneType selectedBone = BoneType.NORMAL_BONES;
-	private static final Set<Integer> INV_IDS = new HashSet<>();
 	
-	private WorldPosition lastPos = null;
-	private long lastPosChange = 0;
-	private long lastWalkAt = 0;
-	private long lastChiselAt = 0;
+	private static final Set<Integer> COIN_SET = Collections.singleton(995);
+	private static final Set<Integer> INV_IDS = new HashSet<>();
+	private static final Set<Integer> ALL_BONE_IDS = new HashSet<>();
+	
+	static {
+		for (BoneType t : BoneType.values()) {
+			ALL_BONE_IDS.add(t.unblessedId);
+			ALL_BONE_IDS.add(t.notedId);
+			ALL_BONE_IDS.add(t.blessedId);
+		}
+	}
+	
+	private WorldPosition lastPos;
+	private long lastPosChange;
+	private long lastWalkAt;
+	private long lastUnnoteAt;
+	private long lastBlessAt;
+	private long lastDebugAt;
 	
 	public boneBlesser(Object core) {
 		super(core);
@@ -49,6 +74,19 @@ public class boneBlesser extends Script {
 	
 	@Override
 	public void onStart() {
+		
+		scriptStartTime = System.currentTimeMillis();
+		totalShards = 0;
+		lastShardCount = -1;
+		
+		
+		INV_IDS.clear();
+		for (BoneType t : BoneType.values()) {
+			INV_IDS.add(t.unblessedId);
+			INV_IDS.add(t.notedId);
+			INV_IDS.add(t.blessedId);
+		}
+		INV_IDS.add(CHISEL_ID);
 		
 		ComboBox<BoneType> box = new ComboBox<>();
 		box.getItems().addAll(BoneType.values());
@@ -58,14 +96,7 @@ public class boneBlesser extends Script {
 		confirm.setOnAction(e -> {
 			selectedBone = box.getValue();
 			confirm.getScene().getWindow().hide();
-			
-			INV_IDS.clear();
-			for (BoneType type : BoneType.values()) {
-				INV_IDS.add(type.unblessedId);
-				INV_IDS.add(type.notedId);
-				INV_IDS.add(type.blessedId);
-			}
-			INV_IDS.add(CHISEL_ID);
+			log("BoneBlesser", "Selected bone type: " + selectedBone.name);
 		});
 		
 		VBox root = new VBox(10,
@@ -73,6 +104,7 @@ public class boneBlesser extends Script {
 		                     box,
 		                     confirm
 		);
+		
 		root.setPadding(new Insets(10));
 		getStageController().show(new Scene(root), "Bone Blesser", true);
 	}
@@ -82,15 +114,6 @@ public class boneBlesser extends Script {
 		return new int[]{REGION_TEOMAT};
 	}
 	
-	private static final Set<Integer> ALL_BONE_IDS = new HashSet<>();
-	
-	static {
-		for (BoneType type : BoneType.values()) {
-			ALL_BONE_IDS.add(type.unblessedId);
-			ALL_BONE_IDS.add(type.notedId);
-			ALL_BONE_IDS.add(type.blessedId);
-		}
-	}
 	
 	private boolean recentlyMoved() {
 		WorldPosition now = getWorldPosition();
@@ -105,73 +128,103 @@ public class boneBlesser extends Script {
 	}
 	
 	private boolean canInteract() {
-		return !recentlyMoved();
+		if (recentlyMoved())
+			return false;
+		
+		var d = getWidgetManager().getDialogue();
+		return d == null || !d.isVisible();
 	}
 	
-	private void tryWalkToArea(Rectangle area) {
+	private boolean canBlessInteract() {
+		var d = getWidgetManager().getDialogue();
+		return d == null || !d.isVisible();
+	}
+	
+	private boolean canChiselInteract() {
+		var d = getWidgetManager().getDialogue();
+		return d == null || !d.isVisible();
+	}
+	
+	private boolean inRect(WorldPosition p, Rectangle r) {
+		return p != null &&
+				p.getX() >= r.x &&
+				p.getX() < r.x + r.width &&
+				p.getY() >= r.y &&
+				p.getY() < r.y + r.height;
+	}
+	
+	private void walkToRect(Rectangle r) {
 		long now = System.currentTimeMillis();
 		if (now - lastWalkAt < WALK_COOLDOWN_MS)
 			return;
 		
 		lastWalkAt = now;
 		
-		int x = area.x + random(area.width);
-		int y = area.y + random(area.height);
+		int x = r.x + random(r.width);
+		int y = r.y + random(r.height);
 		
-		WalkConfig cfg = new WalkConfig.Builder()
-				.tileRandomisationRadius(2)
-				.breakDistance(2)
-				.build();
-		
-		getWalker().walkTo(new WorldPosition(x, y, 0), cfg);
-	}
-	
-	private boolean inArea(WorldPosition p, Rectangle r) {
-		if (p == null || r == null)
-			return false;
-		
-		return p.getX() >= r.x &&
-				p.getX() <  r.x + r.width &&
-				p.getY() >= r.y &&
-				p.getY() <  r.y + r.height;
+		getWalker().walkTo(new WorldPosition(x, y, 0),
+		                   new WalkConfig.Builder().build());
 	}
 	
 	private boolean validateRequirements(ItemGroupResult inv) {
-		ItemGroupResult coinInv =
-				getWidgetManager().getInventory().search(COIN_SET);
 		
-		ItemSearchResult coins = coinInv == null ? null : coinInv.getItem(995);
+		ItemSearchResult coins =
+				getWidgetManager().getInventory().search(COIN_SET).getItem(995);
 		
 		if (coins == null || coins.getStackAmount() < 10) {
-			log("BoneBlesser", "Stopping: Less than 10 coins remaining.");
+			log("BoneBlesser", "Stopping: Less than 10 coins.");
 			stop();
 			return false;
 		}
 		
-		if (inv.getItem(CHISEL_ID) == null) {
-			log("BoneBlesser", "Stopping: No chisel found in inventory.");
+		ItemSearchResult chisel = inv.getItem(CHISEL_ID);
+		if (chisel == null || chisel.getSlot() != 26) {
+			log("BoneBlesser", "Stopping: Chisel must be in slot 26.");
 			stop();
 			return false;
 		}
 		
-		if (!hasAnyBones()) {
-			log("BoneBlesser", "Stopping: No bones of any type found.");
+		ItemGroupResult bones =
+				getWidgetManager().getInventory().search(ALL_BONE_IDS);
+		
+		if (bones == null || bones.isEmpty()) {
+			log("BoneBlesser", "Stopping: No bones found.");
 			stop();
 			return false;
 		}
-		
 		
 		return true;
 	}
 	
-	private boolean hasAnyBones() {
-		ItemGroupResult bones =
-				getWidgetManager().getInventory().search(ALL_BONE_IDS);
-		return bones != null && !bones.isEmpty();
-	}
-
 	@Override
 	public int poll() {
+		
+		ItemGroupResult inv =
+				getWidgetManager().getInventory().search(INV_IDS);
+		if (inv == null) return random(120, 180);
+		if (!validateRequirements(inv)) return -1;
+		
+		ItemSearchResult unblessed = inv.getItem(selectedBone.unblessedId);
+		ItemSearchResult noted = inv.getItem(selectedBone.notedId);
+		ItemSearchResult blessed = inv.getItem(selectedBone.blessedId);
+		ItemSearchResult chisel = inv.getItem(CHISEL_ID);
+		
+		ItemSearchResult shardStack =
+				getWidgetManager()
+						.getInventory()
+						.search(Collections.singleton(BONE_SHARDS_ID))
+						.getItem(BONE_SHARDS_ID);
+		
+		if (shardStack != null) {
+			int current = shardStack.getStackAmount();
+			
+			if (lastShardCount != -1 && current > lastShardCount) {
+				totalShards += (current - lastShardCount);
+			}
+			
+			lastShardCount = current;
+		}
 		
 		var dialogue = getWidgetManager().getDialogue();
 		if (dialogue != null && dialogue.isVisible()) {
@@ -181,91 +234,161 @@ public class boneBlesser extends Script {
 						b.x + b.width / 2,
 						b.y + (int) (b.height * 0.58)
 				               );
-				return random(400, 600);
+				return random(300, 450);
 			}
 		}
 		
-		ItemGroupResult inv = getWidgetManager().getInventory().search(INV_IDS);
-		if (inv == null)
-			return random(120, 180);
-		
-		if (!validateRequirements(inv))
-			return -1;
-
-		
-		ItemSearchResult unblessed = inv.getItem(selectedBone.unblessedId);
-		ItemSearchResult noted = inv.getItem(selectedBone.notedId);
-		ItemSearchResult blessed = inv.getItem(selectedBone.blessedId);
-		ItemSearchResult chisel = inv.getItem(CHISEL_ID);
-		
 		WorldPosition me = getWorldPosition();
-		if (me == null)
-			return random(120, 180);
+		if (me == null) return random(120, 180);
 		
 		boolean needChisel = chisel != null && blessed != null && unblessed == null;
 		boolean needBless = unblessed != null;
-		boolean needUnnote = noted != null && blessed == null && inv.getFreeSlots() > 0;
+		boolean needUnnote = noted != null && unblessed == null && inv.getFreeSlots() > 0;
 		
-		if (needChisel) {
-			if (!canInteract())
-				return random(120, 180);
-			
-			if (System.currentTimeMillis() - lastChiselAt < CHISEL_COOLDOWN_MS)
-				return random(120, 180);
-			
-			chisel.interact();
-			pollFramesHuman(() -> false, random(120, 200));
-			blessed.interact();
-			lastChiselAt = System.currentTimeMillis();
-			return random(500, 800);
+		long now = System.currentTimeMillis();
+		if (now - lastDebugAt > DEBUG_LOG_MS) {
+			log("BoneBlesser",
+			    "State | noted=" + (noted != null) +
+					    " unblessed=" + (unblessed != null) +
+					    " blessed=" + (blessed != null) +
+					    " free=" + inv.getFreeSlots() +
+					    " moved=" + recentlyMoved()
+			   );
+			lastDebugAt = now;
 		}
 		
-		if (needBless) {
+		if (needChisel) {
 			
-			if (!inArea(me, ALTAR_AREA)) {
-				tryWalkToArea(ALTAR_AREA);
+			if (!canChiselInteract())
+				return random(40, 70);
+			
+			ItemSearchResult target = null;
+			
+			// Prefer slot 27 specifically (last slot)
+			List<ItemSearchResult> allBlessed = inv.getAllOfItem(selectedBone.blessedId);
+			if (allBlessed != null && !allBlessed.isEmpty()) {
+				for (ItemSearchResult r : allBlessed) {
+					if (r != null && r.getSlot() == 27) {
+						target = r;
+						break;
+					}
+				}
+				// Fallback: any blessed bone
+				if (target == null)
+					target = allBlessed.get(0);
+			}
+			
+			if (target == null)
+				return random(40, 80);
+			
+			if (!chisel.interact())
+				return random(60, 90);
+			
+			pollFramesHuman(() -> false, random(40, 70));
+			
+			target.interact();
+			return random(80, 120);
+		}
+		
+		
+		if (needBless && now - lastBlessAt > BLESS_COOLDOWN_MS) {
+			
+			RSObject altar =
+					getObjectManager().getClosestObject(me, "Exposed altar");
+			
+			if (altar != null && canBlessInteract()) {
+				
+				Polygon poly = altar.getConvexHull();
+				if (poly != null) {
+					poly = poly.getResized(0.6);
+					
+					if (getWidgetManager().insideGameScreen(poly, Collections.emptyList())) {
+						getFinger().tapGameScreen(poly, "Bless");
+						lastBlessAt = now;
+						return random(120, 180);
+					}
+				}
+			}
+			
+			if (!inRect(me, ALTAR_AREA)) {
+				walkToRect(ALTAR_AREA);
 				return random(200, 300);
 			}
 			
-			RSObject altar = getObjectManager().getClosestObject(me, "Exposed altar");
-			if (altar == null || !canInteract())
-				return random(200, 300);
-			
-			Polygon poly = altar.getConvexHull();
-			if (poly == null)
-				return random(120, 180);
-			
-			poly = poly.getResized(0.6);
-			if (!getWidgetManager().insideGameScreen(poly, Collections.emptyList()))
-				return random(120, 180);
-			
-			getFinger().tapGameScreen(poly, "Bless");
-			return random(500, 800);
+			return random(150, 220);
 		}
 		
 		if (needUnnote) {
 			
-			if (!canInteract())
+			if ((dialogue != null && dialogue.isVisible()) ||
+					now - lastUnnoteAt < UNNOTE_COOLDOWN_MS)
 				return random(120, 180);
 			
-			noted.interact();
-			pollFramesHuman(() -> false, random(120, 200));
-			
-			for (WorldPosition npc : getWidgetManager().getMinimap().getNPCPositions().asList()) {
+			for (WorldPosition npc :
+					getWidgetManager().getMinimap().getNPCPositions().asList()) {
+				
 				Polygon cube = getSceneProjector().getTileCube(npc, 75);
-				if (cube != null &&
-						getWidgetManager().insideGameScreen(cube, Collections.emptyList())) {
-					getFinger().tapGameScreen(cube);
-					return random(600, 900);
-				}
+				if (cube == null) continue;
+				
+				if (!getWidgetManager().insideGameScreen(cube, Collections.emptyList()))
+					continue;
+				
+				noted.interact();
+				pollFramesHuman(() -> false, random(40, 80));
+				getFinger().tapGameScreen(cube);
+				
+				lastUnnoteAt = now;
+				return random(600, 900);
 			}
+			
+			if (!inRect(me, VIRILIS_RECT))
+				walkToRect(VIRILIS_RECT);
+			
+			return random(300, 450);
 		}
 		
 		return random(200, 300);
 	}
-	/* enum from roe script */
-	public enum BoneType {
+	@Override
+	public void onPaint(Canvas c) {
 		
+		long elapsed = System.currentTimeMillis() - scriptStartTime;
+		if (elapsed <= 0)
+			return;
+		
+		double hours = elapsed / 3_600_000D;
+		int perHour = hours > 0 ? (int) (totalShards / hours) : 0;
+		
+		int x = 10;
+		int y = 40;
+		
+		// Background
+		c.fillRect(5, y - 25, 220, 70, 0x88000000, 0.9);
+		c.drawRect(5, y - 25, 220, 70, 0xFFFFFFFF);
+		
+		// Text (TEXT, X, Y, COLOR, FONT)
+		c.drawText("Bone Blesser", x, y, 0xFFFFFFFF, PAINT_FONT);
+		y += 14;
+		
+		c.drawText(
+				"Shards: " + totalShards,
+				x,
+				y,
+				0xFF00FF00,
+				PAINT_FONT
+		          );
+		y += 14;
+		
+		c.drawText(
+				"Shards/hr: " + perHour,
+				x,
+				y,
+				0xFF00FFFF,
+				PAINT_FONT
+		          );
+	}
+
+	public enum BoneType {
 		NORMAL_BONES("Bones", 526, 527, 29344),
 		BAT_BONES("Bat bones", 530, 531, 29346),
 		BIG_BONES("Big bones", 532, 533, 29348),
@@ -291,16 +414,21 @@ public class boneBlesser extends Script {
 		public final int notedId;
 		public final int blessedId;
 		
-		BoneType(String name, int unblessedId, int notedId, int blessedId) {
-			this.name = name;
-			this.unblessedId = unblessedId;
-			this.notedId = notedId;
-			this.blessedId = blessedId;
+		BoneType(String n, int u, int no, int b) {
+			name = n;
+			unblessedId = u;
+			notedId = no;
+			blessedId = b;
 		}
 		
 		@Override
 		public String toString() {
 			return name;
 		}
+		
+		
 	}
+	
 }
+
+
