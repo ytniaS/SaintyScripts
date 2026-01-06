@@ -216,6 +216,12 @@ public class boneBlesser extends Script {
 						.search(Collections.singleton(BONE_SHARDS_ID))
 						.getItem(BONE_SHARDS_ID);
 		
+		if (unblessed == null && noted == null && blessed == null) {
+			log("BoneBlesser", "Stopping: Out of bones.");
+			stop();
+			return -1;
+		}
+		
 		if (shardStack != null) {
 			int current = shardStack.getStackAmount();
 			
