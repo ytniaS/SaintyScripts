@@ -13,7 +13,7 @@ import java.util.*;
 @ScriptDefinition(
 		name = "Bone Blesser",
 		author = "Sainty",
-		version = 2.1,
+		version = 2.2,
 		description = "Unnotes, blesses and chisels bones.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -28,7 +28,6 @@ public class boneBlesser extends Script {
 	private static final Rectangle VIRILIS_RECT =
 			new Rectangle(1441, 3154, 5, 4);
 	
-// oops forgot about the birb
 	private static final Rectangle RENU_RECT =
 			new Rectangle(1436, 3168, 3, 2);
 	
@@ -48,7 +47,6 @@ public class boneBlesser extends Script {
 	private int totalShards;
 	private int lastShardCount = -1;
 	private int remainingBones;
-	
 	
 	private BoneType selectedBone = null;
 	private boolean detectionTimedOut = false;
@@ -74,7 +72,6 @@ public class boneBlesser extends Script {
 	private long lastSuccessfulUnnoteAt = 0;
 	private int lastNotedCount = -1;
 	
-	
 	public boneBlesser(Object core) {
 		super(core);
 	}
@@ -88,7 +85,6 @@ public class boneBlesser extends Script {
 		detectionTimedOut = false;
 		lastSuccessfulUnnoteAt = System.currentTimeMillis();
 		lastNotedCount = -1;
-		
 		
 		INV_IDS.clear();
 		for (BoneType t : BoneType.values()) {
@@ -152,60 +148,33 @@ public class boneBlesser extends Script {
 		                  );
 	}
 	
-	private boolean validateRequirements(ItemGroupResult inv) {
-		
-		ItemSearchResult coins =
-				getWidgetManager().getInventory().search(COIN_SET).getItem(995);
-		
-		if (coins == null || coins.getStackAmount() < 10) {
-			log("BoneBlesser", "Stopping: Less than 10 coins.");
-			stop();
-			return false;
-		}
-		
-		ItemSearchResult chisel = inv.getItem(CHISEL_ID);
-		if (chisel == null || chisel.getSlot() != 26) {
-			log("BoneBlesser", "Stopping: Chisel must be in slot 26.");
-			stop();
-			return false;
-		}
-		
-		ItemGroupResult bones =
-				getWidgetManager().getInventory().search(ALL_BONE_IDS);
-		
-		if (bones == null || bones.isEmpty()) {
-			log("BoneBlesser", "Stopping: No bones found.");
-			stop();
-			return false;
-		}
-		
-		return true;
-	}
-	
 	private void detectBoneType(ItemGroupResult inv) {
 		if (selectedBone != null)
 			return;
 		
 		for (BoneType t : BoneType.values()) {
-			if (inv.getItem(t.notedId) != null) {
+			if (getWidgetManager().getInventory()
+					.search(Collections.singleton(t.notedId))
+					.getItem(t.notedId) != null) {
 				selectedBone = t;
-				log("BoneBlesser", "Detected bone type (noted): " + t.name);
 				return;
 			}
 		}
 		
 		for (BoneType t : BoneType.values()) {
-			if (inv.getItem(t.blessedId) != null) {
+			if (getWidgetManager().getInventory()
+					.search(Collections.singleton(t.blessedId))
+					.getItem(t.blessedId) != null) {
 				selectedBone = t;
-				log("BoneBlesser", "Detected bone type (blessed): " + t.name);
 				return;
 			}
 		}
 		
 		for (BoneType t : BoneType.values()) {
-			if (inv.getItem(t.unblessedId) != null) {
+			if (getWidgetManager().getInventory()
+					.search(Collections.singleton(t.unblessedId))
+					.getItem(t.unblessedId) != null) {
 				selectedBone = t;
-				log("BoneBlesser", "Detected bone type (unblessed): " + t.name);
 				return;
 			}
 		}
@@ -221,37 +190,32 @@ public class boneBlesser extends Script {
 		if (inv == null)
 			return random(120, 180);
 		
-		if (!validateRequirements(inv))
-			return -1;
-		
 		detectBoneType(inv);
 		
 		if (selectedBone == null) {
 			if (!detectionTimedOut && now - scriptStartTime > DETECTION_TIMEOUT_MS) {
-				log("BoneBlesser", "No bones detected after 30 seconds. Stopping.");
-				detectionTimedOut = true;
+				log("BoneBlesser", "No bones detected after timeout. Stopping.");
 				stop();
-				return -1;
 			}
 			return random(250, 400);
 		}
 		
-		ItemSearchResult unblessed = inv.getItem(selectedBone.unblessedId);
-		ItemSearchResult noted = inv.getItem(selectedBone.notedId);
-		ItemSearchResult blessed = inv.getItem(selectedBone.blessedId);
+		ItemSearchResult noted =
+				getWidgetManager().getInventory()
+						.search(Collections.singleton(selectedBone.notedId))
+						.getItem(selectedBone.notedId);
+		
+		ItemSearchResult unblessed =
+				getWidgetManager().getInventory()
+						.search(Collections.singleton(selectedBone.unblessedId))
+						.getItem(selectedBone.unblessedId);
+		
+		ItemSearchResult blessed =
+				getWidgetManager().getInventory()
+						.search(Collections.singleton(selectedBone.blessedId))
+						.getItem(selectedBone.blessedId);
+		
 		ItemSearchResult chisel = inv.getItem(CHISEL_ID);
-		
-		ItemSearchResult shardStack =
-				getWidgetManager()
-						.getInventory()
-						.search(Collections.singleton(BONE_SHARDS_ID))
-						.getItem(BONE_SHARDS_ID);
-		
-		if (unblessed == null && noted == null && blessed == null) {
-			log("BoneBlesser", "Stopping: Out of bones.");
-			stop();
-			return -1;
-		}
 		
 		if (noted != null) {
 			int currentNoted = noted.getStackAmount();
@@ -263,42 +227,41 @@ public class boneBlesser extends Script {
 			lastNotedCount = currentNoted;
 		}
 		
-		
-		if (shardStack != null) {
-			int current = shardStack.getStackAmount();
-			if (lastShardCount != -1 && current > lastShardCount)
-				totalShards += (current - lastShardCount);
-			lastShardCount = current;
+		if (blessed != null) {
+			ItemSearchResult shardStack =
+					getWidgetManager().getInventory()
+							.search(Collections.singleton(BONE_SHARDS_ID))
+							.getItem(BONE_SHARDS_ID);
+			
+			if (shardStack != null) {
+				int current = shardStack.getStackAmount();
+				if (lastShardCount != -1 && current > lastShardCount)
+					totalShards += (current - lastShardCount);
+				lastShardCount = current;
+			}
 		}
 		
 		remainingBones = 0;
 		
-		if (noted != null) {
+		if (noted != null)
 			remainingBones += Math.max(1, noted.getStackAmount());
-		}
 		
-		List<ItemSearchResult> unblessedList =
-				inv.getAllOfItem(selectedBone.unblessedId);
-		if (unblessedList != null) {
+		List<ItemSearchResult> unblessedList = inv.getAllOfItem(selectedBone.unblessedId);
+		if (unblessedList != null)
 			remainingBones += unblessedList.size();
-		}
 		
-		List<ItemSearchResult> blessedList =
-				inv.getAllOfItem(selectedBone.blessedId);
-		if (blessedList != null) {
+		List<ItemSearchResult> blessedList = inv.getAllOfItem(selectedBone.blessedId);
+		if (blessedList != null)
 			remainingBones += blessedList.size();
-		}
 		
 		if (noted != null) {
 			long sinceLastUnnote = now - lastSuccessfulUnnoteAt;
-			
-			if (sinceLastUnnote > 60_000) {
-				log("BoneBlesser", "Stopping: Unnoting stalled for 60 seconds.");
+			if (sinceLastUnnote > 180000) {
+				log("BoneBlesser", "Stopping: Unnoting stalled for 180 seconds.");
 				stop();
 				return -1;
 			}
 		}
-		
 		
 		var dialogue = getWidgetManager().getDialogue();
 		if (dialogue != null && dialogue.isVisible()) {
@@ -316,7 +279,7 @@ public class boneBlesser extends Script {
 		if (me == null)
 			return random(120, 180);
 		
-		boolean needChisel = chisel != null && blessed != null && unblessed == null;
+		boolean needChisel = chisel != null && blessed != null;
 		boolean needBless = unblessed != null;
 		boolean needUnnote = noted != null && unblessed == null && inv.getFreeSlots() > 0;
 		
@@ -334,7 +297,10 @@ public class boneBlesser extends Script {
 		if (needChisel && canInteract()) {
 			
 			ItemSearchResult target = null;
-			List<ItemSearchResult> allBlessed = inv.getAllOfItem(selectedBone.blessedId);
+			List<ItemSearchResult> allBlessed =
+					getWidgetManager().getInventory()
+							.search(Collections.singleton(selectedBone.blessedId))
+							.getAllOfItem(selectedBone.blessedId);
 			
 			if (allBlessed != null && !allBlessed.isEmpty()) {
 				for (ItemSearchResult r : allBlessed) {
@@ -462,7 +428,6 @@ public class boneBlesser extends Script {
 		
 		c.drawText("Time left: " + timeLeft, x, y, 0xFFFFAA00, PAINT_FONT);
 	}
-
 	
 	public enum BoneType {
 		NORMAL_BONES("Bones", 526, 527, 29344, 4),
@@ -497,11 +462,6 @@ public class boneBlesser extends Script {
 			notedId = no;
 			blessedId = b;
 			shardsPerBone = shards;
-		}
-		
-		@Override
-		public String toString() {
-			return name;
 		}
 	}
 }
