@@ -23,30 +23,30 @@ import java.util.Set;
 @ScriptDefinition(
 		name = "LibationBowl",
 		author = "Sainty",
-		version = 1.3,
+		version = 2.0,
 		description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
 		skillCategory = SkillCategory.PRAYER
 )
 public class LibationBowl extends Script {
 	
-	// ========= ITEM IDS ==========
+
 	private static final int COINS        = 995;
 	private static final int BONE_SHARDS  = 29381;
 	private static final int JUG_OF_WINE  = 1993;
 	private static final int BLESSED_WINE = 29386;
 	private static final int EMPTY_JUG    = 1935;
 	
-	// Sunfire items
+
 	private static final int SUNFIRE_SPLINTER      = 28924;
 	private static final int PESTLE_AND_MORTAR     = 233;
 	private static final int SUNFIRE_WINE          = 29382;
 	private static final int BLESSED_SUNFIRE_WINE  = 29384;
 	
-	// ========= REGIONS ==========
+
 	private static final int REGION_ALDARIN = 5421;
 	private static final int REGION_TEOMAT  = 5681;
 	
-	// ========= POSITIONS ==========
+
 	private static final WorldPosition QUETZAL_ALDARIN = new WorldPosition(1389, 2899, 0);
 	private static final WorldPosition QUETZAL_TEOMAT  = new WorldPosition(1437, 3169, 0);
 	
@@ -88,7 +88,7 @@ public class LibationBowl extends Script {
 	
 	private static final int MIN_PRAYER_POINTS = 2;
 	
-	// ========= STATE ==========
+
 	private boolean useSunfire = false;
 	private boolean sunfireProcessing = false;
 	private XPTracker prayerXP;
@@ -106,18 +106,25 @@ public class LibationBowl extends Script {
 		return new ScriptOptions();
 	}
 	
-	// ========= STARTUP ==========
+
+	private long travelCooldownUntil = 0;
+	private long walkCooldownUntil   = 0;
+	
+	private static final long TRAVEL_COOLDOWN_MS = 4500;
+	private static final long WALK_COOLDOWN_MS   = 3000;
+	
+
 	@Override
 	public void onStart() {
 		
-		// ===== SHOW OPTIONS UI =====
+
 		ScriptOptions ui = new ScriptOptions();
 		Scene scene = new Scene(ui);
 		getStageController().show(scene, "Libation Bowl Options", false);
 		
 		useSunfire = ui.useSunfire();
 		
-		// ===== NORMAL STARTUP =====
+
 		prayerXP = getXPTrackers().get(SkillType.PRAYER);
 		
 		INVENTORY_IDS.clear();
@@ -127,7 +134,7 @@ public class LibationBowl extends Script {
 		INVENTORY_IDS.add(BLESSED_WINE);
 		INVENTORY_IDS.add(EMPTY_JUG);
 		
-		// Sunfire items
+
 		INVENTORY_IDS.add(SUNFIRE_SPLINTER);
 		INVENTORY_IDS.add(PESTLE_AND_MORTAR);
 		INVENTORY_IDS.add(SUNFIRE_WINE);
@@ -142,10 +149,13 @@ public class LibationBowl extends Script {
 		log("LibationBowl", "Started. Sunfire mode = " + useSunfire);
 	}
 	
-	// ========= MAIN LOOP ==========
+
 	@Override
 	public int poll() {
 		
+		if (travelOnCooldown()) {
+			return 0;
+		}
 		Integer prayer = safePrayer();
 		if (prayer != null && prayer <= MIN_PRAYER_POINTS) {
 			baskAtShrine();
@@ -170,35 +180,39 @@ public class LibationBowl extends Script {
 			return 0;
 		}
 		
-		// PRIORITY 2: Convert to Sunfire *before* blessing, if enabled and we have the items
-		if (useSunfire &&
-				inv.contains(JUG_OF_WINE) &&
-				inv.contains(SUNFIRE_SPLINTER) &&
-				inv.contains(PESTLE_AND_MORTAR)) {
+		if (useSunfire && inv.contains(JUG_OF_WINE)) {
 			
-			convertToSunfireWine(inv);
-			return 0;
+			if (canMakeSunfire(inv)) {
+				convertToSunfireWine(inv);
+				return 0;
+			}
+			
+			log("LibationBowl", "Sunfire enabled but no pestle — blessing normal wine.");
 		}
 		
-		// PRIORITY 3: Bless wine (normal or Sunfire)
 		if (inv.contains(JUG_OF_WINE) || inv.contains(SUNFIRE_WINE)) {
 			blessWine();
 			return 0;
 		}
 		
-		// PRIORITY 4: No wine → go and buy more
 		acquireMoreWine(inv);
 		return 0;
 	}
 	
-	// ========= MAKE SUNFIRE WINE ==========
+	
+	private boolean canMakeSunfire(ItemGroupResult inv) {
+		return inv.contains(SUNFIRE_SPLINTER)
+				&& inv.contains(PESTLE_AND_MORTAR)
+				&& inv.contains(JUG_OF_WINE);
+	}
+	
+	
 	private void convertToSunfireWine(ItemGroupResult inv) {
 		
 		ItemSearchResult splinter = inv.getItem(SUNFIRE_SPLINTER);
 		ItemSearchResult wine     = inv.getItem(JUG_OF_WINE);
 		ItemSearchResult pestle   = inv.getItem(PESTLE_AND_MORTAR);
 		
-		// Nothing to do
 		if (splinter == null || wine == null || pestle == null)
 			return;
 		
@@ -231,7 +245,6 @@ public class LibationBowl extends Script {
 	}
 
 	
-	// ========= BLESS WINE ==========
 	private void blessWine() {
 		
 		if (!inRegion(REGION_TEOMAT)) {
@@ -274,7 +287,21 @@ public class LibationBowl extends Script {
 		getFinger().tapGameScreen(resized, "Bless");
 	}
 	
-	// ========= USE LIBATION BOWL ==========
+	private boolean travelOnCooldown() {
+		return System.currentTimeMillis() < travelCooldownUntil;
+	}
+	
+	private boolean walkOnCooldown() {
+		return System.currentTimeMillis() < walkCooldownUntil;
+	}
+	
+	private void triggerTravelCooldown() {
+		travelCooldownUntil = System.currentTimeMillis() + TRAVEL_COOLDOWN_MS;
+		walkCooldownUntil   = System.currentTimeMillis() + WALK_COOLDOWN_MS;
+	}
+	
+	
+
 	private void useLibationBowl() {
 		
 		Integer prayer = safePrayer();
@@ -332,7 +359,6 @@ public class LibationBowl extends Script {
 		}
 	}
 	
-	// ========= PRAYER RESTORE ==========
 	private void baskAtShrine() {
 		if (!inRegion(REGION_TEOMAT)) {
 			travelToTeomat();
@@ -375,7 +401,6 @@ public class LibationBowl extends Script {
 		walkToArea(BOWL_AREA);
 	}
 	
-	// ========= BUYING WINE ==========
 	private void acquireMoreWine(ItemGroupResult invSnapshot) {
 		
 		// 1) Always handle empty jugs first — this preempts shopping
@@ -383,17 +408,15 @@ public class LibationBowl extends Script {
 		if (jugCheck != null && jugCheck.contains(EMPTY_JUG)) {
 			
 			depositEmptyJugs();
-			// After banking, let the next poll() decide the next action
 			return;
 		}
 		
-		// 2) If the shop is already open, handle the buy loop
+
 		if (wineShop != null && wineShop.isVisible()) {
 			handleWineShop(invSnapshot);
 			return;
 		}
 		
-		// 3) Must be in Aldarin to buy wine
 		if (!inRegion(REGION_ALDARIN)) {
 			travelToAldarin();
 			return;
@@ -433,7 +456,7 @@ public class LibationBowl extends Script {
 		pollFramesHuman(() -> wineShop != null && wineShop.isVisible(), random(2500, 4500));
 	}
 	
-	// ========= SHOP BUY LOOP ==========
+
 	private void handleWineShop(ItemGroupResult invBefore) {
 		
 		while (true) {
@@ -472,7 +495,6 @@ public class LibationBowl extends Script {
 		wineShop.close();
 	}
 	
-	// ========= BANKING ==========
 	private void depositEmptyJugs() {
 		
 		ItemGroupResult jugs = getWidgetManager().getInventory().search(Collections.singleton(EMPTY_JUG));
@@ -531,7 +553,6 @@ public class LibationBowl extends Script {
 		getWidgetManager().getBank().close();
 	}
 	
-	// ========= TRAVEL ==========
 	private void travelToAldarin() {
 		
 		if (!inRegion(REGION_TEOMAT)) {
@@ -561,10 +582,12 @@ public class LibationBowl extends Script {
 		}
 		
 		getFinger().tap(resized, "Travel");
+		triggerTravelCooldown();
 		
 		// Small delay, then click Aldarin on the Quetzal map
 		pollFramesHuman(() -> false, random(700, 1200));
 		getFinger().tap(randomPointIn(ALDARIN_RECT));
+		triggerTravelCooldown();
 	}
 	
 	private void travelToTeomat() {
@@ -596,13 +619,14 @@ public class LibationBowl extends Script {
 		}
 		
 		getFinger().tap(resized, "Travel");
+		triggerTravelCooldown();
 		
 		// Small delay, then click Teomat on the Quetzal map
 		pollFramesHuman(() -> false, random(700, 1200));
 		getFinger().tap(randomPointIn(TEOMAT_RECT));
+		triggerTravelCooldown();
 	}
 	
-	// ========= HELPERS ==========
 	private boolean inRegion(int region) {
 		WorldPosition pos = getWorldPosition();
 		return pos != null && pos.getRegionID() == region;
@@ -630,20 +654,28 @@ public class LibationBowl extends Script {
 	}
 	
 	private void walkToPosition(WorldPosition target) {
-		if (target == null) return;
+		if (target == null)
+			return;
 		
-		// Immediately after Quetzal flights, these can be null briefly and caused a crash
-		if (getLocalPosition() == null || getWorldPosition() == null) {
-			log("LibationBowl", "World/local position null (likely loading/teleport) — skipping walk this tick.");
+		if (walkOnCooldown()) {
+			log("LibationBowl", "Walk on cooldown — skipping walk this tick.");
 			return;
 		}
 		
-		WalkConfig.Builder cfg = new WalkConfig.Builder()
-				.tileRandomisationRadius(2)
-				.breakDistance(2);
+		// Immediately after Quetzal flights, these can be null briefly
+		if (getLocalPosition() == null || getWorldPosition() == null) {
+			log("LibationBowl", "World/local position null (loading) — skipping walk.");
+			return;
+		}
 		
-		getWalker().walkTo(target, cfg.build());
+		WalkConfig cfg = new WalkConfig.Builder()
+				.setWalkMethods(false, true)
+				.build();
+		
+		getWalker().walkTo(target, cfg);
+		walkCooldownUntil = System.currentTimeMillis() + WALK_COOLDOWN_MS;
 	}
+
 	
 
 	private void walkToArea(Rectangle area) {
@@ -662,7 +694,6 @@ public class LibationBowl extends Script {
 		return new Point(x, y);
 	}
 	
-	// ========= XP Tracker ==========
 	@Override
 	public void onPaint(Canvas c) {
 		if (prayerXP == null) {
@@ -693,7 +724,6 @@ public class LibationBowl extends Script {
 		return String.format("%02d:%02d:%02d", h, m % 60, s % 60);
 	}
 	
-	// ========= REGION PRIORITY ==========
 	@Override
 	public int[] regionsToPrioritise() {
 		return new int[]{REGION_ALDARIN, REGION_TEOMAT};
