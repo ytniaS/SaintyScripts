@@ -1,5 +1,5 @@
 <component name="ArtifactManager">
-  <artifact type="jar" name="BabaYagaBuyer">
+  <artifact type="jar" build-on-make="true" name="BabaYagaBuyer">
     <output-path>$PROJECT_DIR$/out/artifacts/BabaYagaBuyer</output-path>
     <root id="archive" name="babaYagaBuyer.jar">
       <element id="module-output" name="BabaYagaBuyer" />
