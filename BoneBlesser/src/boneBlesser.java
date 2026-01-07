@@ -13,7 +13,7 @@ import java.util.*;
 @ScriptDefinition(
 		name = "Bone Blesser",
 		author = "Sainty",
-		version = 2.0,
+		version = 2.1,
 		description = "Unnotes, blesses and chisels bones.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -39,7 +39,7 @@ public class boneBlesser extends Script {
 	private static final long UNNOTE_COOLDOWN_MS = 8000;
 	private static final long BLESS_COOLDOWN_MS = 8000;
 	private static final long DEBUG_LOG_MS = 2000;
-	private static final long DETECTION_TIMEOUT_MS = 30_000;
+	private static final long DETECTION_TIMEOUT_MS = 90000;
 	
 	private static final java.awt.Font PAINT_FONT =
 			new java.awt.Font("Arial", java.awt.Font.PLAIN, 12);
