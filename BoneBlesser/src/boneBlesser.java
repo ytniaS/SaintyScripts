@@ -4,6 +4,7 @@ import com.osmb.api.item.*;
 import com.osmb.api.location.position.types.WorldPosition;
 import com.osmb.api.script.*;
 import com.osmb.api.shape.*;
+import com.osmb.api.ui.component.tabs.SettingsTabComponent;
 import com.osmb.api.visual.drawing.Canvas;
 import com.osmb.api.walker.WalkConfig;
 import com.osmb.api.scene.RSObject;
@@ -13,7 +14,7 @@ import java.util.*;
 @ScriptDefinition(
 		name = "Bone Blesser",
 		author = "Sainty",
-		version = 2.2,
+		version = 2.3,
 		description = "Unnotes, blesses and chisels bones.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -79,6 +80,7 @@ public class boneBlesser extends Script {
 	@Override
 	public void onStart() {
 		
+		ensureMaxZoom();
 		scriptStartTime = System.currentTimeMillis();
 		totalShards = 0;
 		lastShardCount = -1;
@@ -179,6 +181,39 @@ public class boneBlesser extends Script {
 			}
 		}
 	}
+	
+	private void ensureMaxZoom() {
+		
+		if (!getWidgetManager().getSettings()
+				.openSubTab(SettingsTabComponent.SettingsSubTabType.DISPLAY_TAB)) {
+			log("BoneBlesser", "Failed to open display settings tab");
+			return;
+		}
+		
+		var zoomResult = getWidgetManager()
+				.getSettings()
+				.getZoomLevel();
+		
+		Integer zoom = zoomResult != null ? zoomResult.get() : null;
+		
+		if (zoom == null) {
+			log("BoneBlesser", "Failed to read zoom level");
+			return;
+		}
+		
+		log("BoneBlesser", "Current zoom level: " + zoom);
+		
+		// Force max zoom-out
+		if (zoom < 5) {
+			if (getWidgetManager().getSettings().setZoomLevel(5)) {
+				log("BoneBlesser", "Zoom set to maximum (5)");
+				sleep(random(400, 600));
+			} else {
+				log("BoneBlesser", "Failed to set zoom level");
+			}
+		}
+	}
+	
 	
 	@Override
 	public int poll() {
@@ -355,15 +390,17 @@ public class boneBlesser extends Script {
 				if (inRect(npc, RENU_RECT))
 					continue;
 				
-				Polygon cube = getSceneProjector().getTileCube(npc, 75);
+				Polygon cube = getSceneProjector().getTileCube(npc, 120);
 				if (cube == null)
 					continue;
+				
+				cube = cube.getResized(0.7);
 				
 				if (!getWidgetManager().insideGameScreen(cube, Collections.emptyList()))
 					continue;
 				
 				noted.interact();
-				pollFramesHuman(() -> false, random(40, 80));
+				pollFramesHuman(() -> false, random(10, 30));
 				getFinger().tapGameScreen(cube);
 				
 				lastUnnoteAt = now;
