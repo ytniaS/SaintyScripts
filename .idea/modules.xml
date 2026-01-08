@@ -4,7 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/BabaYagaBuyer/BabaYagaBuyer.iml" filepath="$PROJECT_DIR$/BabaYagaBuyer/BabaYagaBuyer.iml" />
       <module fileurl="file://$PROJECT_DIR$/BoneBlesser/BoneBlesser.iml" filepath="$PROJECT_DIR$/BoneBlesser/BoneBlesser.iml" />
-      <module fileurl="file://$PROJECT_DIR$/MoltenGlassGatherer/MoltenGlassGatherer.iml" filepath="$PROJECT_DIR$/MoltenGlassGatherer/MoltenGlassGatherer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/CharterCraftingTest/src/com/osmb/script/crafting/chartercrafting/CharterCraftingTest.iml" filepath="$PROJECT_DIR$/CharterCraftingTest/src/com/osmb/script/crafting/chartercrafting/CharterCraftingTest.iml" />
       <module fileurl="file://$PROJECT_DIR$/PackBuyer/PackBuyer.iml" filepath="$PROJECT_DIR$/PackBuyer/PackBuyer.iml" />
       <module fileurl="file://$PROJECT_DIR$/SaintyScripts.iml" filepath="$PROJECT_DIR$/SaintyScripts.iml" />
       <module fileurl="file://$PROJECT_DIR$/libation/libation.iml" filepath="$PROJECT_DIR$/libation/libation.iml" />
