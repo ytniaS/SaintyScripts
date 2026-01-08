@@ -11,7 +11,7 @@ import com.osmb.script.crafting.chartercrafting.handles.FurnaceHandler;
 import com.osmb.script.crafting.chartercrafting.handles.ShopHandler;
 import com.osmb.script.crafting.chartercrafting.handles.DepositBoxHandler;
 import com.osmb.script.crafting.chartercrafting.javafx.UI;
-
+import static com.osmb.script.crafting.chartercrafting.State.depositing;
 
 import java.util.Set;
 
@@ -20,7 +20,7 @@ import static com.osmb.script.crafting.chartercrafting.Constants.ITEM_IDS_TO_REC
 import static com.osmb.script.crafting.chartercrafting.State.*;
 import static com.osmb.script.crafting.chartercrafting.utils.Utilities.getExcessItemsToDrop;
 
-@ScriptDefinition(name = "OSMBs Charter Crafter", author = "joe", version = 1.0, description = "Modified version of OSMBs charter crafter that uses deposit boxes", skillCategory = SkillCategory.CRAFTING)
+@ScriptDefinition(name = "OSMBs Charter Crafting", author = "joe", version = 1.0, description = "", skillCategory = SkillCategory.CRAFTING)
 public class CharterCrafting extends Script {
 
     private ShopHandler shopHandler;
@@ -105,9 +105,19 @@ public class CharterCrafting extends Script {
     
     private void decideTask() {
         
+        if (depositing) {
+            depositBoxHandler.handle();
+            return;
+        }
+        
         if (hasNoHopProfile())
             return;
         
+        if (getWidgetManager().getDepositBox().isVisible()) {
+            depositing = true;
+            depositBoxHandler.handle();
+            return;
+        }
         
         if (getWidgetManager().getBank().isVisible()) {
             bankHandler.handleInterface();
