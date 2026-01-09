@@ -1,6 +1,6 @@
 <component name="ArtifactManager">
   <artifact build-on-make="true" name="pestcontrol:jar">
-    <output-path>$PROJECT_DIR$/out/artifacts/pestcontrol_jar</output-path>
+    <output-path>$USER_HOME$/.osmb/Scripts</output-path>
     <root id="root">
       <element id="archive" name="pestcontrol.jar">
         <element id="module-output" name="pestcontrol" />

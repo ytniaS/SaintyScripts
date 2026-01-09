@@ -9,12 +9,16 @@ import com.osmb.api.visual.drawing.Canvas;
 import com.osmb.api.walker.WalkConfig;
 import com.osmb.api.scene.RSObject;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.image.BufferedImage;
 import java.util.*;
 
 @ScriptDefinition(
 		name = "Bone Blesser",
 		author = "Sainty",
-		version = 2.3,
+		version = 2.5,
 		description = "Unnotes, blesses and chisels bones.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -80,6 +84,12 @@ public class boneBlesser extends Script {
 	@Override
 	public void onStart() {
 		
+
+		if (!com.osmb.script.boneblesser.VersionChecker.isExactVersion(this)) {
+			stop();
+			return;
+		}
+
 		ensureMaxZoom();
 		scriptStartTime = System.currentTimeMillis();
 		totalShards = 0;
@@ -414,57 +424,76 @@ public class boneBlesser extends Script {
 		return random(200, 300);
 	}
 	
+	private void drawHeader(Canvas c, String author, String title, int x, int y) {
+		
+		Font authorFont = new Font("Segoe UI", Font.PLAIN, 16);
+		Font titleFont  = new Font("Segoe UI", Font.BOLD, 20);
+		c.drawText(author, x + 1, y + 1, 0xAA000000, authorFont);
+		c.drawText(title,  x + 1, y + 25 + 1, 0xAA000000, titleFont);
+		c.drawText(author, x, y, 0xFFB0B0B0, authorFont);
+		c.drawText(title,  x, y + 25, 0xFFD0D0D0, titleFont);
+		c.drawText(title, x - 1, y + 24, 0xFFFFFFFF, titleFont);
+	}
+	
+	
 	@Override
 	public void onPaint(Canvas c) {
 		
 		long elapsed = System.currentTimeMillis() - scriptStartTime;
-		if (elapsed <= 0)
+		if (elapsed <= 0) return;
+		
+		int x = 16;
+		int y = 40;
+		int w = 240;
+		int headerH = 50;
+		int bodyH = 95;
+		
+		int BG = new Color(12, 14, 20, 235).getRGB();
+		int BORDER = new Color(100, 100, 110, 180).getRGB();
+		int DIVIDER = new Color(255, 255, 255, 40).getRGB();
+		
+
+		c.fillRect(x, y, w, headerH + bodyH, BG, 0.95);
+		c.drawRect(x, y, w, headerH + bodyH, BORDER);
+		
+		drawHeader(c, "Sainty", "Bone Blesser", x + 14, y + 18);
+		
+		c.fillRect(x + 10, y + headerH, w - 20, 1, DIVIDER);
+		
+		int ty = y + headerH + 18;
+		
+
+		if (selectedBone == null) {
+			c.drawText("Detecting bones...", x + 14, ty, 0xFFFFCC00, PAINT_FONT);
 			return;
+		}
 		
 		double hours = elapsed / 3_600_000D;
 		int shardsPerHour = hours > 0 ? (int) (totalShards / hours) : 0;
 		
-		int bonesPerHour = 0;
-		if (selectedBone != null && selectedBone.shardsPerBone > 0) {
-			bonesPerHour = shardsPerHour / selectedBone.shardsPerBone;
-		}
+		int bonesPerHour = selectedBone.shardsPerBone > 0
+		                   ? shardsPerHour / selectedBone.shardsPerBone
+		                   : 0;
 		
 		String timeLeft = "N/A";
 		if (bonesPerHour > 0 && remainingBones > 0) {
-			long minutesLeft = (remainingBones * 60L) / bonesPerHour;
-			long h = minutesLeft / 60;
-			long m = minutesLeft % 60;
-			timeLeft = h + "h " + m + "m";
+			long mins = (remainingBones * 60L) / bonesPerHour;
+			timeLeft = (mins / 60) + "h " + (mins % 60) + "m";
 		}
 		
-		int x = 10;
-		int y = 40;
+		c.drawText("Type: " + selectedBone.name, x + 14, ty, 0xFF66FF66, PAINT_FONT);
+		ty += 14;
 		
-		c.fillRect(5, y - 25, 220, 120, 0x88000000, 0.9);
-		c.drawRect(5, y - 25, 220, 120, 0xFFFFFFFF);
+		c.drawText("Shards: " + totalShards, x + 14, ty, 0xFFFFFFFF, PAINT_FONT);
+		ty += 14;
 		
-		c.drawText("Bone Blesser", x, y, 0xFFFFFFFF, PAINT_FONT);
-		y += 14;
+		c.drawText("Shards/hr: " + shardsPerHour, x + 14, ty, 0xFF66CCFF, PAINT_FONT);
+		ty += 14;
 		
-		if (selectedBone == null) {
-			c.drawText("Detecting bones...", x, y, 0xFFFFFF00, PAINT_FONT);
-			return;
-		}
-		
-		c.drawText("Type: " + selectedBone.name, x, y, 0xFF00FF00, PAINT_FONT);
-		y += 18;
-		
-		c.drawText("Shards: " + totalShards, x, y, 0xFF00FF00, PAINT_FONT);
-		y += 14;
-		
-		c.drawText("Shards/hr: " + shardsPerHour, x, y, 0xFF00FFFF, PAINT_FONT);
-		y += 14;
-		
-		c.drawText("Remaining bones: " + remainingBones, x, y, 0xFFFF66FF, PAINT_FONT);
-		y += 14;
-		
-		c.drawText("Time left: " + timeLeft, x, y, 0xFFFFAA00, PAINT_FONT);
+		c.drawText("Time left: " + timeLeft, x + 14, ty, 0xFFFFAA00, PAINT_FONT);
 	}
+	
+	
 	
 	public enum BoneType {
 		NORMAL_BONES("Bones", 526, 527, 29344, 4),
@@ -500,5 +529,5 @@ public class boneBlesser extends Script {
 			blessedId = b;
 			shardsPerBone = shards;
 		}
-	}
-}
+	}}
+

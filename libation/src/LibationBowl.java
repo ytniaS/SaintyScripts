@@ -23,7 +23,7 @@ import java.util.Set;
 @ScriptDefinition(
 		name = "LibationBowl",
 		author = "Sainty",
-		version = 2.0,
+		version = 2.1,
 		description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -116,7 +116,10 @@ public class LibationBowl extends Script {
 
 	@Override
 	public void onStart() {
-		
+		if (!com.osmb.script.libation.VersionChecker.isExactVersion(this)) {
+			stop();
+			return;
+		}
 
 		ScriptOptions ui = new ScriptOptions();
 		Scene scene = new Scene(ui);
@@ -694,27 +697,65 @@ public class LibationBowl extends Script {
 		return new Point(x, y);
 	}
 	
+	private void drawHeader(Canvas c, String author, String title, int x, int y) {
+		
+		Font authorFont = new Font("Segoe UI", Font.PLAIN, 16);
+		Font titleFont  = new Font("Segoe UI", Font.BOLD, 20);
+		
+		c.drawText(author, x + 1, y + 1, 0xAA000000, authorFont);
+		c.drawText(title,  x + 1, y + 25 + 1, 0xAA000000, titleFont);
+		
+		c.drawText(author, x, y, 0xFFB0B0B0, authorFont);
+		c.drawText(title,  x, y + 25, 0xFFD0D0D0, titleFont);
+		
+		c.drawText(title, x - 1, y + 24, 0xFFFFFFFF, titleFont);
+	}
+	
+	
 	@Override
 	public void onPaint(Canvas c) {
+		
 		if (prayerXP == null) {
 			prayerXP = getXPTrackers().get(SkillType.PRAYER);
 			if (prayerXP == null)
 				return;
 		}
 		
-		c.fillRect(5, 25, 220, 90, 0x88000000, 0.8);
-		c.drawRect(5, 25, 220, 90, Color.WHITE.getRGB());
+		int x = 16;
+		int y = 40;
+		int w = 240;
+		int headerH = 45;
+		int bodyH = 95;
 		
-		Font f = new Font("Arial", Font.PLAIN, 13);
-		int y = 45;
+		int BG = new Color(12, 14, 20, 235).getRGB();
+		int BORDER = new Color(100, 100, 110, 180).getRGB();
+		int DIVIDER = new Color(255, 255, 255, 40).getRGB();
 		
-		c.drawText("LibationBowl running...", 10, y, Color.WHITE.getRGB(), f); y += 16;
-		c.drawText("Time: " + formatRuntime(), 10, y, Color.WHITE.getRGB(), f); y += 16;
-		c.drawText("XP Gained: " + (int)prayerXP.getXpGained(), 10, y, Color.WHITE.getRGB(), f); y += 16;
-		c.drawText("XP/hr: " + prayerXP.getXpPerHour(), 10, y, Color.WHITE.getRGB(), f); y += 16;
-		c.drawText("Lvl " + prayerXP.getLevel() + " → TNL: " + prayerXP.timeToNextLevelString(),
-		           10, y, Color.WHITE.getRGB(), f);
+		Font bodyFont = new Font("Segoe UI", Font.PLAIN, 13);
+		
+		c.fillRect(x, y, w, headerH + bodyH, BG, 0.95);
+		c.drawRect(x, y, w, headerH + bodyH, BORDER);
+		
+		drawHeader(c, "Sainty", "Libation Bowl", x + 14, y + 16);
+		c.fillRect(x + 10, y + headerH, w - 20, 1, DIVIDER);
+		
+		int ty = y + headerH + 18;
+		
+		c.drawText("Runtime: " + formatRuntime(), x + 14, ty, 0xFFFFFFFF, bodyFont);
+		ty += 14;
+		c.drawText("XP gained: " + (int) prayerXP.getXpGained(), x + 14, ty, 0xFF66FF66, bodyFont);
+		ty += 14;
+		c.drawText("XP/hr: " + prayerXP.getXpPerHour(), x + 14, ty, 0xFF66CCFF, bodyFont);
+		ty += 14;
+		c.drawText(
+				"Lvl " + prayerXP.getLevel() + " → TNL: " + prayerXP.timeToNextLevelString(),
+				x + 14,
+				ty,
+				0xFFFFAA00,
+				bodyFont
+		          );
 	}
+
 	
 	private String formatRuntime() {
 		long ms = System.currentTimeMillis() - getStartTime();

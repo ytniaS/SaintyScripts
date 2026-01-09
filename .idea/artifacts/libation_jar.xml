@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="libation:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/libation</output-path>
+    <root id="archive" name="libation.jar">
+      <element id="module-output" name="libation" />
+    </root>
+  </artifact>
+</component>
