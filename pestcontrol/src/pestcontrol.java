@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
 		name = "Dumb PestControl",
 		author = "Sainty",
-		version = 1.5,
+		version = 2.0,
 		description = "Dumb Pest control - fights monsters around the void knight",
 		skillCategory = SkillCategory.COMBAT
 )
@@ -126,7 +126,12 @@ public class pestcontrol extends Script {
 	}
 	
 	@Override
-	public void onStart() {
+	public void onStart()
+	{
+		if (!com.osmb.script.pestcontrol.VersionChecker.isExactVersion(this)) {
+			stop();
+			return;
+		}
 		addCustomMap(new MapDefinition(2624, 2560, 64, 64, 0, 0)); // pest control island
 		addCustomMap(new MapDefinition(2624, 2624, 64, 64, 0, 0)); // void knight outpost
 		
@@ -509,24 +514,64 @@ public class pestcontrol extends Script {
 		return !inGame && !boardingInProgress && !awaitingResult;
 	}
 	
+	private void drawHeader(Canvas c, String author, String title, int x, int y) {
+		Font authorFont = new Font("Segoe UI", Font.PLAIN, 16);
+		Font titleFont = new Font("Segoe UI", Font.BOLD, 20);
+		c.drawText(author, x + 1, y + 1, 0xAA000000, authorFont);
+		c.drawText(title, x + 1, y + 25 + 1, 0xAA000000, titleFont);
+		c.drawText(author, x, y, 0xFFB0B0B0, authorFont);
+		c.drawText(title, x, y + 25, 0xFFD0D0D0, titleFont);
+		c.drawText(title, x - 1, y + 24, 0xFFFFFFFF, titleFont);
+	}
+	
 	@Override
 	public void onPaint(Canvas c) {
 		
-		Font f = new Font("Arial", Font.PLAIN, 13);
+		long elapsed = System.currentTimeMillis() - startTime;
+		if (elapsed <= 0)
+			return;
 		
-		c.fillRect(6, 20, 240, 110, 0x66000000, 0.7);
-		c.drawRect(6, 20, 240, 110, Color.WHITE.getRGB());
+		int x = 16;
+		int y = 40;
+		int w = 240;
+		int headerH = 45;
+		int bodyH = 95;
 		
-		long run = System.currentTimeMillis() - startTime;
-		long s = run / 1000, m = s / 60, h = m / 60;
+		int BG = new Color(12, 14, 20, 235).getRGB();
+		int BORDER = new Color(100, 100, 110, 180).getRGB();
+		int DIVIDER = new Color(255, 255, 255, 40).getRGB();
 		
-		c.drawText("Pest Control", 10, 40, Color.WHITE.getRGB(), f);
-		c.drawText("Time: " + String.format("%02d:%02d:%02d", h, m % 60, s % 60),
-		           10, 56, Color.WHITE.getRGB(), f);
-		c.drawText("Boat: " + selectedBoat.name, 10, 72, Color.WHITE.getRGB(), f);
-		c.drawText("Games won: " + gamesWon, 10, 88, Color.WHITE.getRGB(), f);
-		c.drawText("Points: " + totalPoints, 10, 104, Color.WHITE.getRGB(), f);
-		c.drawText("Games lost: " + gamesLost, 10, 120, Color.WHITE.getRGB(), f);
+		Font bodyFont = new Font("Segoe UI", Font.PLAIN, 13);
+		
+		c.fillRect(x, y, w, headerH + bodyH, BG, 0.95);
+		c.drawRect(x, y, w, headerH + bodyH, BORDER);
+		drawHeader(c, "Sainty", "Pest Control", x + 14, y + 16);
+		c.fillRect(x + 10, y + headerH, w - 20, 1, DIVIDER);
+		
+		int ty = y + headerH + 18;
+		long seconds = elapsed / 1000;
+		long minutes = seconds / 60;
+		long hours   = minutes / 60;
+		
+		String runtime = String.format(
+				"%02d:%02d:%02d",
+				hours,
+				minutes % 60,
+				seconds % 60
+		                              );
+		
+		c.drawText("Runtime: " + runtime, x + 14, ty, 0xFFFFFFFF, bodyFont);
+		ty += 14;
+		
+		if (selectedBoat != null) {
+			c.drawText("Boat: " + selectedBoat.name, x + 14, ty, 0xFF66CCFF, bodyFont);
+			ty += 14;
+		}
+		c.drawText("Games won: " + gamesWon, x + 14, ty, 0xFF66FF66, bodyFont);
+		ty += 14;
+		c.drawText("Games lost: " + gamesLost, x + 14, ty, 0xFFFF6666, bodyFont);
+		ty += 14;
+		c.drawText("Points: " + totalPoints, x + 14, ty, 0xFFFFAA00, bodyFont);
 	}
 	
 	private static class PestOptions extends VBox {

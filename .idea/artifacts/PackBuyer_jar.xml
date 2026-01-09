@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="PackBuyer:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/PackBuyer</output-path>
+    <root id="archive" name="PackBuyer.jar">
+      <element id="module-output" name="PackBuyer" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/API.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
