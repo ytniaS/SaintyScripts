@@ -48,7 +48,6 @@ public class ScriptOptions extends VBox {
 		start.setOnAction(e -> {
 			PackModeConfig base = location.getSelectionModel().getSelectedItem();
 			if (base == null) {return;}
-			// Copy template ONCE
 			PackModeConfig chosen = base.copy();
 			// Target total (blank or invalid = 0)
 			if (targetTotal.getText() != null && targetTotal.getText().matches("\\d+")) {
