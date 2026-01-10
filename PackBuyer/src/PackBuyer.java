@@ -20,7 +20,7 @@ import javafx.scene.Scene;
 @ScriptDefinition(
 		name = "Pack Buyer",
 		author = "Sainty",
-		version = 1.1,
+		version = 1.2,
 		description = "Buys and opens feather packs or broad arrowhead packs using base stock logic",
 		skillCategory = SkillCategory.OTHER
 )
@@ -33,6 +33,7 @@ public class PackBuyer extends Script {
 	private static final int AMYLASE_PACK = 12641;
 	private static final int AMYLASE_CRYSTAL = 12640;
 	private static final int MARK_OF_GRACE = 11849;
+	private long totalCost = 0;
 	private static final Font PAINT_FONT = new Font("Arial", Font.PLAIN, 13);
 	private static final PackModeConfig FEATHER_GERRANT =
 			new PackModeConfig(
@@ -44,7 +45,8 @@ public class PackBuyer extends Script {
 					FEATHER_PACK,
 					FEATHERS,
 					100,
-					50
+					50,
+					200
 			);
 	private static final PackModeConfig BROAD_SPIRA =
 			new PackModeConfig(
@@ -56,7 +58,8 @@ public class PackBuyer extends Script {
 					BROAD_ARROW_PACK,
 					BROAD_ARROWHEADS,
 					800,
-					50
+					50,
+					5500
 			);
 	private static final PackModeConfig BROAD_TURAEL =
 			new PackModeConfig(
@@ -68,7 +71,8 @@ public class PackBuyer extends Script {
 					BROAD_ARROW_PACK,
 					BROAD_ARROWHEADS,
 					800,
-					50
+					50,
+					5500
 			);
 	private static final PackModeConfig AMYLASE_GRACE =
 			new PackModeConfig(
@@ -80,7 +84,8 @@ public class PackBuyer extends Script {
 					AMYLASE_PACK,
 					AMYLASE_CRYSTAL,
 					1000,
-					50
+					50,
+					10
 			);
 	private PackModeConfig config;
 	private GenericShopInterface shop;
@@ -127,14 +132,12 @@ public class PackBuyer extends Script {
 	
 	@Override
 	public int poll() {
-		// ─── Coins check ─────────────────────────────
 		if (!hasCurrency()) {
 			log("Out of coins → stopping");
 			closeShop();
 			stop();
 			return 0;
 		}
-		// ─── Menu desync recovery ────────────────────
 		if (menuDesync) {
 			log("Menu desync → closing + hopping");
 			closeShop();
@@ -142,7 +145,6 @@ public class PackBuyer extends Script {
 			menuDesync = false;
 			return 0;
 		}
-		// ─── PRIORITY: if packs exist, close shop and open ───
 		if (hasPack()) {
 			log("Pack detected in inventory");
 			if (shop.isVisible()) {
@@ -153,27 +155,23 @@ public class PackBuyer extends Script {
 			openPack();
 			return 0;
 		}
-		// ─── Stop only when finished AND empty ───────
 		if (config.totalOpened >= config.targetTotal) {
 			log("Target reached → stopping");
 			closeShop();
 			stop();
 			return 0;
 		}
-		// ─── Handle open shop ────────────────────────
 		if (shop.isVisible()) {
 			log("Shop visible → handleShop()");
 			handleShop();
 			return 0;
 		}
-		// ─── Hop if flagged ──────────────────────────
 		if (hopFlag) {
 			log("Hop flag set → hopping");
 			getProfileManager().forceHop();
 			hopFlag = false;
 			return 0;
 		}
-		// ─── Attempt to open shop ────────────────────
 		openShop();
 		return 0;
 	}
@@ -226,27 +224,46 @@ public class PackBuyer extends Script {
 				() -> getInventoryAmount(config.packItemId) > before,
 				3500
 		                                 );
-		if (success) {
-			int after = getInventoryAmount(config.packItemId);
-			int gained = Math.max(0, after - before);
-			config.totalOpened += gained;
-			log("Bought pack x" + gained);
-			closeShop();
-		} else {
+		if (!success) {
 			log("No buy possible → hop");
 			closeShop();
 			hopFlag = true;
+			return;
 		}
+		int after = getInventoryAmount(config.packItemId);
+		int gained = Math.max(0, after - before);
+		if (gained <= 0) {
+			log("Inventory delta zero → hop");
+			closeShop();
+			hopFlag = true;
+			return;
+		}
+		long batchCost = calculateBatchCost(
+				config.basePrice,
+				alreadyBought,
+				gained
+		                                   );
+		config.totalOpened += gained;
+		totalCost += batchCost;
+		log("Bought pack x" + gained + " | cost=" + batchCost);
+		closeShop();
 	}
 	
 	private void openPack() {
-		ItemGroupResult inv = getWidgetManager().getInventory().search(Set.of(config.packItemId));
+		ItemGroupResult inv =
+				getWidgetManager().getInventory().search(Set.of(config.packItemId));
 		if (inv == null) {return;}
 		ItemSearchResult pack = inv.getItem(config.packItemId);
 		if (pack == null) {return;}
 		int before = getInventoryAmount(config.openedItemId);
-		if (!pack.interact("Open") && !pack.interact()) {return;}
-		if (pollFramesUntil(() -> getInventoryAmount(config.openedItemId) > before, 3500)) {
+		if (!getFinger().tap(pack.getBounds())) {
+			log("Failed to tap pack");
+			return;
+		}
+		if (pollFramesUntil(
+				() -> getInventoryAmount(config.openedItemId) > before,
+				3500
+		                   )) {
 			int after = getInventoryAmount(config.openedItemId);
 			int gained = Math.max(0, after - before);
 			config.totalOpened += gained;
@@ -292,24 +309,105 @@ public class PackBuyer extends Script {
 		if (shop != null && shop.isVisible()) {shop.close();}
 	}
 	
+	private void drawHeader(Canvas c, String author, String title, int x, int y) {
+		Font authorFont = new Font("Segoe UI", Font.PLAIN, 16);
+		Font titleFont = new Font("Segoe UI", Font.BOLD, 20);
+		c.drawText(author, x + 1, y + 1, 0xAA000000, authorFont);
+		c.drawText(title, x + 1, y + 25 + 1, 0xAA000000, titleFont);
+		c.drawText(author, x, y, 0xFFB0B0B0, authorFont);
+		c.drawText(title, x, y + 25, 0xFFD0D0D0, titleFont);
+		c.drawText(title, x - 1, y + 24, 0xFFFFFFFF, titleFont);
+	}
+	
+	private String formatRuntime(long ms) {
+		long totalSeconds = ms / 1000;
+		long hours = totalSeconds / 3600;
+		long minutes = (totalSeconds % 3600) / 60;
+		long seconds = totalSeconds % 60;
+		return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+	}
+	
+	private String formatETA(long ms) {
+		if (ms <= 0) {return "00:00:00";}
+		return formatRuntime(ms);
+	}
+	
+	private long calculateBatchCost(int basePrice, int alreadyBought, int quantity) {
+		double total = 0;
+		for (int i = 0; i < quantity; i++) {
+			double multiplier = 1.0 + ((alreadyBought + i) * 0.001);
+			total += basePrice * multiplier;
+		}
+		return Math.round(total);
+	}
+	
+	private String formatCost(long gp) {
+		if (gp >= 1_000_000) {return String.format("%.2fM gp", gp / 1_000_000D);}
+		if (gp >= 1_000) {return String.format("%.1fK gp", gp / 1_000D);}
+		return gp + " gp";
+	}
+	
 	@Override
 	public void onPaint(Canvas c) {
 		long elapsed = System.currentTimeMillis() - startTime;
 		if (elapsed <= 0) {return;}
+		double hours = elapsed / 3_600_000D;
+		long perHour = hours > 0.01
+		               ? (long) (config.totalOpened / hours)
+		               : 0;
+		int remaining = Math.max(0, config.targetTotal - config.totalOpened);
+		String eta = "—";
+		if (perHour > 0 && remaining > 0) {
+			long etaMs = (long) ((remaining / (double) perHour) * 3_600_000D);
+			eta = formatETA(etaMs);
+		}
+		double avgCostPerItem =
+				config.totalOpened > 0
+				? totalCost / (double) config.totalOpened
+				: 0;
+		long estimatedRemainingCost =
+				(long) (remaining * avgCostPerItem);
+		long estimatedTotalCost =
+				totalCost + estimatedRemainingCost;
 		int x = 16;
 		int y = 40;
 		int w = 240;
-		int headerH = 45;
-		int bodyH = 55;
+		int headerH = 65;
+		int lineH = 14;
+		int lines = 5;
+		int bodyH = (lines * lineH) + 10;
 		int BG = new Color(12, 14, 20, 235).getRGB();
 		int BORDER = new Color(100, 100, 110, 180).getRGB();
 		int DIVIDER = new Color(255, 255, 255, 40).getRGB();
 		Font bodyFont = new Font("Segoe UI", Font.PLAIN, 13);
 		c.fillRect(x, y, w, headerH + bodyH, BG, 0.95);
 		c.drawRect(x, y, w, headerH + bodyH, BORDER);
+		drawHeader(c, "Sainty", "Pack Buyer", x + 14, y + 16);
 		c.fillRect(x + 10, y + headerH, w - 20, 1, DIVIDER);
 		int ty = y + headerH + 18;
-		c.drawText("Opened: " + config.totalOpened + " / " + config.targetTotal,
-		           x + 14, ty, 0xFFFFFFFF, bodyFont);
+		c.drawText(
+				"Opened: " + config.totalOpened + " / " + config.targetTotal,
+				x + 14, ty, 0xFFFFFFFF, bodyFont
+		          );
+		ty += lineH;
+		c.drawText(
+				"Rate: " + perHour + "/hr",
+				x + 14, ty, 0xFF66CCFF, bodyFont
+		          );
+		ty += lineH;
+		c.drawText(
+				"Time to target: " + eta,
+				x + 14, ty, 0xFFFFAA00, bodyFont
+		          );
+		ty += lineH;
+		c.drawText(
+				"Cost so far: " + formatCost(totalCost),
+				x + 14, ty, 0xFFFFFFFF, bodyFont
+		          );
+		ty += lineH;
+		c.drawText(
+				"Est. total cost: " + formatCost(estimatedTotalCost),
+				x + 14, ty, 0xFFAA66FF, bodyFont
+		          );
 	}
 }

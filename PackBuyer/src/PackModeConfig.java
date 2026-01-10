@@ -15,6 +15,7 @@ public class PackModeConfig {
 	public int targetTotal;
 	public int perWorld;
 	public int totalOpened;
+	public final int basePrice;
 	
 	public PackModeConfig(
 			BuyMode mode,
@@ -25,7 +26,8 @@ public class PackModeConfig {
 			int packItemId,
 			int openedItemId,
 			int baseStock,
-			int buyAmount
+			int buyAmount,
+			int basePrice
 	                     ) {
 		this.mode = mode;
 		this.displayName = displayName;
@@ -36,6 +38,7 @@ public class PackModeConfig {
 		this.openedItemId = openedItemId;
 		this.baseStock = baseStock;
 		this.buyAmount = buyAmount;
+		this.basePrice = basePrice;
 	}
 	
 	public PackModeConfig copy() {
@@ -48,7 +51,8 @@ public class PackModeConfig {
 				packItemId,
 				openedItemId,
 				baseStock,
-				buyAmount
+				buyAmount,
+				basePrice
 		);
 		c.targetTotal = targetTotal;
 		c.perWorld = perWorld;
