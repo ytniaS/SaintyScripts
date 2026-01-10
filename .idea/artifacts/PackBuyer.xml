@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="PackBuyer">
+    <output-path>$USER_HOME$/.osmb/Scripts</output-path>
+    <root id="archive" name="PackBuyer.jar">
+      <element id="module-output" name="PackBuyer" />
+    </root>
+  </artifact>
+</component>
