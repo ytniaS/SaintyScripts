@@ -19,7 +19,7 @@ import com.osmb.api.walker.WalkConfig;
 @ScriptDefinition(
 		name = "Cave Nightshade Gatherer",
 		author = "Sainty",
-		version = 1.1,
+		version = 1.2,
 		description = "Gathers Cave Nightshade and banks it for snowflakes.",
 		skillCategory = SkillCategory.OTHER
 )
@@ -31,6 +31,8 @@ public class CaveNightshadeGatherer extends Script {
 	};
 	private static final WorldPosition BANK_TILE =
 			new WorldPosition(2614, 3092, 0);
+	private static final WorldPosition GATE_POSITION =
+			new WorldPosition(2549, 3028, 0);
 	private static final WorldPosition GATE_NORTH_APPROACH =
 			new WorldPosition(2555, 3057, 0); // bank side
 	private static final WorldPosition GATE_SOUTH_APPROACH =
@@ -144,7 +146,6 @@ public class CaveNightshadeGatherer extends Script {
 			return;
 		}
 		log("CaveNightShade", "Current zoom level: " + zoom);
-		// Force max zoom-out
 		if (zoom < 5) {
 			if (getWidgetManager().getSettings().setZoomLevel(5)) {
 				log("CaveNightShade", "Zoom set to maximum (5)");
@@ -164,6 +165,7 @@ public class CaveNightshadeGatherer extends Script {
 		if (!gateLocked) {return false;}
 		if (System.currentTimeMillis() > gateLockUntil) {
 			gateLocked = false;
+			gateLockUntil = 0;
 			return false;
 		}
 		return true;
@@ -179,10 +181,7 @@ public class CaveNightshadeGatherer extends Script {
 			}
 			return;
 		}
-		WorldPosition GATE_POSITION = new WorldPosition(2549, 3028, 0);
-		boolean south = isSouthSide(me);
-		boolean north = isNorthSide(me);
-		if (headingToBank && south) {
+		if (headingToBank && isSouthSide(me)) {
 			if (me.distanceTo(GATE_POSITION) <= 3) {
 				RSObject gate = getObjectManager().getClosestObject(me, "City gate");
 				if (gate != null && gate.interact("Open")) {
@@ -204,7 +203,7 @@ public class CaveNightshadeGatherer extends Script {
 			}
 			return;
 		}
-		if (!headingToBank && north) {
+		if (!headingToBank && isNorthSide(me)) {
 			if (me.distanceTo(GATE_POSITION) <= 3) {
 				RSObject gate = getObjectManager().getClosestObject(me, "City gate");
 				if (gate != null && gate.interact("Open")) {
@@ -245,11 +244,9 @@ public class CaveNightshadeGatherer extends Script {
 		}
 		RSObject entrance =
 				getObjectManager().getClosestObject(me, "Cave entrance");
-		if (entrance != null) {
-			if (entrance.interact("Enter")) {
-				enteringCave = true;
-				pollFramesHuman(() -> false, random(600, 900));
-			}
+		if (entrance != null && entrance.interact("Enter")) {
+			enteringCave = true;
+			pollFramesHuman(() -> false, random(600, 900));
 		}
 	}
 	
@@ -259,8 +256,7 @@ public class CaveNightshadeGatherer extends Script {
 		if (!inCave()) {return;}
 		RSObject exit =
 				getObjectManager().getClosestObject(me, "Cave exit");
-		if (exit == null) {return;}
-		if (exit.interact("Leave")) {
+		if (exit != null && exit.interact("Leave")) {
 			pollFramesHuman(() -> false, random(3000, 4000));
 		}
 	}
@@ -292,8 +288,8 @@ public class CaveNightshadeGatherer extends Script {
 			log("Cave Nightshade not visible — hopping world.");
 			if (canHop()) {
 				getProfileManager().forceHop();
-				return;
 			}
+			return;
 		}
 		getFinger().tapGameScreen(tight, "Take");
 		boolean success = pollFramesUntil(() -> {
@@ -305,12 +301,9 @@ public class CaveNightshadeGatherer extends Script {
 		if (success) {
 			totalCollected++;
 			log("Picked up Cave Nightshade — hopping world.");
-			if (canHop()) {
-				getProfileManager().forceHop();
-				return;
-			}
+		} else {
+			log("Cave Nightshade missing — hopping world.");
 		}
-		log("Cave Nightshade missing — hopping world.");
 		if (canHop()) {
 			getProfileManager().forceHop();
 		}
