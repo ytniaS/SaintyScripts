@@ -323,13 +323,11 @@ public class CaveNightshadeGatherer extends Script {
 			walkTo(BANK_TILE);
 			return;
 		}
-		Polygon bankPoly =
-				getSceneProjector().getTilePoly(BANK_TILE);
+		Polygon bankPoly = getSceneProjector().getTilePoly(BANK_TILE);
 		if (bankPoly == null) {return;}
 		getFinger().tap(bankPoly, "Bank");
-		boolean opened =
-				pollFramesUntil(() ->
-						                getWidgetManager().getBank().isVisible(), 4000);
+		boolean opened = pollFramesUntil(() ->
+				                                 getWidgetManager().getBank().isVisible(), 4000);
 		if (!opened) {return;}
 		int amt = inv.getAmount(CAVE_NIGHTSHADE);
 		if (amt > 0) {
@@ -337,6 +335,7 @@ public class CaveNightshadeGatherer extends Script {
 		}
 		getWidgetManager().getBank().close();
 		gateLocked = false;
+		gateLockUntil = 0;
 	}
 	
 	private void walkTo(WorldPosition pos) {
