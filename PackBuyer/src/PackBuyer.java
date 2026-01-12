@@ -35,6 +35,7 @@ public class PackBuyer extends Script {
 	private static final int MARK_OF_GRACE = 11849;
 	private long totalCost = 0;
 	private static final Font PAINT_FONT = new Font("Arial", Font.PLAIN, 13);
+	//shops :
 	private static final PackModeConfig FEATHER_GERRANT =
 			new PackModeConfig(
 					BuyMode.FEATHERS,
@@ -176,6 +177,7 @@ public class PackBuyer extends Script {
 		return 0;
 	}
 	
+	//check for required currency depending on shop, expandable in case more shops are added
 	private boolean hasCurrency() {
 		int currencyId;
 		int requiredAmount;
@@ -335,7 +337,7 @@ public class PackBuyer extends Script {
 	private long calculateBatchCost(int basePrice, int alreadyBought, int quantity) {
 		double total = 0;
 		for (int i = 0; i < quantity; i++) {
-			double multiplier = 1.0 + ((alreadyBought + i) * 0.001);
+			double multiplier = 1.0 + ((alreadyBought + i) * 0.001); // price changes by 0.1% per item bought
 			total += basePrice * multiplier;
 		}
 		return Math.round(total);
