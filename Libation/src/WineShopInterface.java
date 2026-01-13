@@ -1,5 +1,8 @@
 package com.osmb.script.libation;
 
+import java.awt.Point;
+import java.util.List;
+
 import com.osmb.api.ScriptCore;
 import com.osmb.api.item.ItemGroup;
 import com.osmb.api.shape.Rectangle;
@@ -14,11 +17,7 @@ import com.osmb.api.visual.drawing.BorderPalette;
 import com.osmb.api.visual.drawing.Canvas;
 import com.osmb.api.visual.ocr.fonts.Font;
 
-import java.awt.*;
-import java.util.List;
-
 public class WineShopInterface extends ComponentCentered implements ItemGroup {
-	
 	private static final Rectangle TITLE_BOUNDS =
 			new Rectangle(117, 6, 476, 23);
 	private static final Rectangle CLOSE_BUTTON =
@@ -51,47 +50,27 @@ public class WineShopInterface extends ComponentCentered implements ItemGroup {
 	@Override
 	public boolean isVisible() {
 		Rectangle bounds = getBounds();
-		if (bounds == null)
-			return false;
-		
+		if (bounds == null) {return false;}
 		Rectangle titleRect = bounds.getSubRectangle(TITLE_BOUNDS);
-		
 		String title = core.getOCR().getText(
 				Font.STANDARD_FONT_BOLD,
 				titleRect,
 				ColorUtils.ORANGE_UI_TEXT
 		                                    );
-		
 		return title.equalsIgnoreCase("Sunlight's Sanctum");
 	}
 	
-	/* =====================================================
-	 * CLOSE BUTTON
-	 * ===================================================== */
 	public void close() {
 		Rectangle bounds = getBounds();
-		if (bounds == null)
-			return;
-		
+		if (bounds == null) {return;}
 		Rectangle closeBtn = bounds.getSubRectangle(CLOSE_BUTTON);
 		core.getFinger().tap(closeBtn);
-		
-		long end = System.currentTimeMillis() + 1500;
-		while (System.currentTimeMillis() < end) {
-			if (!isVisible()) return;
-			core.sleep(30);
-		}
+		core.submitHumanTask(() -> !isVisible(), 3000);
 	}
-	
-	/* =====================================================
-	 * BUY AMOUNT BUTTONS
-	 * ===================================================== */
 	
 	public UIResult<Integer> getSelectedAmount() {
 		Rectangle bounds = getBounds();
-		if (bounds == null)
-			return UIResult.notVisible();
-		
+		if (bounds == null) {return UIResult.notVisible();}
 		List<Rectangle> redButtons =
 				core.getImageAnalyzer().findContainers(
 						bounds,
@@ -100,34 +79,25 @@ public class WineShopInterface extends ComponentCentered implements ItemGroup {
 						SpriteID.BANK_TEXT_BUTTON_RED_SW,
 						SpriteID.BANK_TEXT_BUTTON_RED_SE
 				                                      );
-		
-		if (redButtons.isEmpty())
-			return UIResult.notVisible();
-		
+		if (redButtons.isEmpty()) {return UIResult.notVisible();}
 		String text = core.getOCR().getText(
 				Font.STANDARD_FONT,
 				redButtons.get(0),
 				ColorUtils.ORANGE_UI_TEXT
-		                                   );
-		
-		text = text.replaceAll("[^0-9]", "");
-		if (text.isEmpty())
-			return UIResult.of(null);
-		
+		                                   ).replaceAll("[^0-9]", "");
+		if (text.isEmpty()) {return UIResult.of(null);}
 		return UIResult.of(Integer.parseInt(text));
 	}
 	
 	public boolean setSelectedAmount(int amount) {
 		Rectangle bounds = getBounds();
-		if (bounds == null)
-			return false;
-		
+		if (bounds == null) {return false;}
 		UIResult<Integer> selected = getSelectedAmount();
-		if (!selected.isNotVisible() &&
-				selected.get() != null &&
-				selected.get() == amount)
+		if (!selected.isNotVisible()
+				&& selected.get() != null
+				&& selected.get() == amount) {
 			return true;
-		
+		}
 		List<Rectangle> buttons =
 				core.getImageAnalyzer().findContainers(
 						bounds,
@@ -136,78 +106,61 @@ public class WineShopInterface extends ComponentCentered implements ItemGroup {
 						SpriteID.BANK_TEXT_BUTTON_SW,
 						SpriteID.BANK_TEXT_BUTTON_SE
 				                                      );
-		
-		if (buttons.isEmpty())
-			return false;
-		
 		for (Rectangle btn : buttons) {
 			String text = core.getOCR().getText(
 					Font.STANDARD_FONT,
 					btn,
 					ColorUtils.ORANGE_UI_TEXT
 			                                   ).replaceAll("[^0-9]", "");
-			
-			if (text.isEmpty())
-				continue;
-			
+			if (text.isEmpty()) {continue;}
 			int btnAmount = Integer.parseInt(text);
 			if (btnAmount == amount) {
-				core.getFinger().tap(btn.getPadding(3));
-				
-				long end = System.currentTimeMillis() + 1500;
-				while (System.currentTimeMillis() < end) {
+				core.getFinger().tap(btn.getPadding(4));
+				return core.submitTask(() -> {
 					UIResult<Integer> now = getSelectedAmount();
-					if (!now.isNotVisible() &&
-							now.get() != null &&
-							now.get() == amount)
-						return true;
-					
-					core.sleep(40);
-				}
-				return false;
+					return !now.isNotVisible()
+							&& now.get() != null
+							&& now.get() == amount;
+				}, core.random(1600, 3000));
 			}
 		}
-		
 		return false;
-	}
-	
-
-	@Override
-	public ScriptCore getCore() {
-		return core;
 	}
 	
 	@Override
 	public Point getStartPoint() {
 		Rectangle bounds = getBounds();
-		if (bounds == null)
-			return null;
-		
-		return new Point(247, 356);
+		if (bounds == null) {return null;}
+		return new Point(bounds.x + 61, bounds.y + 40);
 	}
 	
 	@Override
 	public int groupWidth() {
-		return 7;
+		return 8;
 	}
 	
 	@Override
 	public int groupHeight() {
-		return 3; // Shop has 3 rows
+		return 4;
 	}
 	
 	@Override
 	public int xIncrement() {
-		return 47; // Based on tile spacing
+		return 47;
 	}
 	
 	@Override
 	public int yIncrement() {
-		return 46; // Based on vertical spacing
+		return 47;
 	}
 	
 	@Override
 	public Rectangle getGroupBounds() {
 		return getBounds();
+	}
+	
+	@Override
+	public ScriptCore getCore() {
+		return core;
 	}
 }
