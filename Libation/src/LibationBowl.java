@@ -26,7 +26,7 @@ import javafx.scene.Scene;
 @ScriptDefinition(
 		name = "LibationBowl",
 		author = "Sainty",
-		version = 2.1,
+		version = 2.2,
 		description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -165,7 +165,7 @@ public class LibationBowl extends Script {
 		ItemSearchResult wine = inv.getItem(JUG_OF_WINE);
 		ItemSearchResult pestle = inv.getItem(PESTLE_AND_MORTAR);
 		if (splinter == null || wine == null || pestle == null) {return;}
-		// Already processing → wait until all wine is gone
+		// Already processing -> wait until all wine is gone
 		if (sunfireProcessing) {
 			if (inv.getItem(JUG_OF_WINE) == null) {
 				sunfireProcessing = false; // finished
@@ -268,7 +268,7 @@ public class LibationBowl extends Script {
 		}
 		log("LibationBowl", "Using Libation bowl.");
 		getFinger().tapGameScreen(resized);
-		// After sacrificing → check for ANY blessed wine left
+		// After sacrificing -> check for ANY blessed wine left
 		ItemGroupResult inv = safeSearch(new HashSet<>(Set.of(BLESSED_WINE, BLESSED_SUNFIRE_WINE)));
 		if (inv == null) {
 			log("LibationBowl", "Inventory unavailable after sacrifice — retrying next tick.");
@@ -367,7 +367,10 @@ public class LibationBowl extends Script {
 			wineShop.setSelectedAmount(10);
 			int freeBefore = inv.getFreeSlots();
 			int wineBefore = inv.getAmount(JUG_OF_WINE);
-			wineItem.interact();
+			if (!wineItem.interact()) {
+				log("LibationBowl", "Failed to interact with wine — retrying.");
+				return;
+			}
 			boolean success = pollFramesUntil(() -> {
 				ItemGroupResult after = getWidgetManager().getInventory().search(INVENTORY_IDS);
 				if (after == null) {return false;}

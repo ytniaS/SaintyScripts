@@ -245,7 +245,7 @@ public class CaveNightshadeGatherer extends Script {
 		RSObject entrance =
 				getObjectManager().getClosestObject(me, "Cave entrance");
 		if (entrance != null && entrance.interact("Enter")) {
-			enteringCave = true; // prevent re-clicking while transitioning 
+			enteringCave = true; // prevent re-clicking while transitioning
 			pollFramesHuman(() -> false, random(600, 900));
 		}
 	}
