@@ -26,7 +26,7 @@ import javafx.scene.Scene;
 @ScriptDefinition(
 		name = "LibationBowl",
 		author = "Sainty",
-		version = 2.2,
+		version = 2.3,
 		description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -140,11 +140,13 @@ public class LibationBowl extends Script {
 			return 0;
 		}
 		if (useSunfire && inv.contains(JUG_OF_WINE)) {
-			if (canMakeSunfire(inv)) {
+			if (!inv.contains(PESTLE_AND_MORTAR)) {
+				log("LibationBowl", "Sunfire enabled but pestle missing — disabling Sunfire mode.");
+				useSunfire = false;
+			} else if (canMakeSunfire(inv)) {
 				convertToSunfireWine(inv);
 				return 0;
 			}
-			log("LibationBowl", "Sunfire enabled but no pestle — blessing normal wine.");
 		}
 		if (inv.contains(JUG_OF_WINE) || inv.contains(SUNFIRE_WINE)) {
 			blessWine();
