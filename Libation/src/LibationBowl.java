@@ -26,7 +26,7 @@ import javafx.scene.Scene;
 @ScriptDefinition(
 		name = "LibationBowl",
 		author = "Sainty",
-		version = 2.3,
+		version = 2.4,
 		description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -74,6 +74,7 @@ public class LibationBowl extends Script {
 	private boolean useSunfire = false;
 	private boolean sunfireProcessing = false;
 	private XPTracker prayerXP;
+	private long sunfireStartedAt = 0;
 	private static final Set<Integer> INVENTORY_IDS = new HashSet<>();
 	private static final Set<Integer> SHOP_WINE_IDS = new HashSet<>();
 	private WineShopInterface wineShop;
@@ -134,6 +135,11 @@ public class LibationBowl extends Script {
 			stop();
 			return 0;
 		}
+		if (sunfireProcessing &&
+				System.currentTimeMillis() - sunfireStartedAt > 12_000) {
+			log("LibationBowl", "Sunfire processing timeout — forcing reset.");
+			sunfireProcessing = false;
+		}
 		// PRIORITY 1: Any blessed wine (normal or Sunfire) → sacrifice
 		if (inv.contains(BLESSED_WINE) || inv.contains(BLESSED_SUNFIRE_WINE)) {
 			useLibationBowl();
@@ -143,6 +149,7 @@ public class LibationBowl extends Script {
 			if (!inv.contains(PESTLE_AND_MORTAR)) {
 				log("LibationBowl", "Sunfire enabled but pestle missing — disabling Sunfire mode.");
 				useSunfire = false;
+				sunfireProcessing = false;
 			} else if (canMakeSunfire(inv)) {
 				convertToSunfireWine(inv);
 				return 0;
@@ -176,7 +183,6 @@ public class LibationBowl extends Script {
 			return;
 		}
 		log("LibationBowl", "Starting Sunfire wine processing...");
-		// Start the combine ONCE
 		if (!splinter.interact()) {
 			log("LibationBowl", "Failed selecting Sunfire Splinter");
 			return;
@@ -186,7 +192,8 @@ public class LibationBowl extends Script {
 			log("LibationBowl", "Failed applying splinter to wine");
 			return;
 		}
-		// Mark as processing so we don't restart animation
+		// START processing state ONCE
+		sunfireStartedAt = System.currentTimeMillis();
 		sunfireProcessing = true;
 	}
 	
