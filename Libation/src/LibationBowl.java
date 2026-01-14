@@ -26,7 +26,7 @@ import javafx.scene.Scene;
 @ScriptDefinition(
 		name = "LibationBowl",
 		author = "Sainty",
-		version = 2.4,
+		version = 2.5,
 		description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -117,12 +117,12 @@ public class LibationBowl extends Script {
 	
 	@Override
 	public int poll() {
-		if (travelOnCooldown()) {
-			return 0;
-		}
 		Integer prayer = safePrayer();
 		if (prayer != null && prayer <= MIN_PRAYER_POINTS) {
 			baskAtShrine();
+			return 0;
+		}
+		if (travelOnCooldown()) {
 			return 0;
 		}
 		ItemGroupResult inv = safeSearch(INVENTORY_IDS);
