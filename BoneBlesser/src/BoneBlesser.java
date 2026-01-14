@@ -23,7 +23,7 @@ import com.osmb.api.walker.WalkConfig;
 @ScriptDefinition(
 		name = "Bone Blesser",
 		author = "Sainty",
-		version = 2.5,
+		version = 2.6,
 		description = "Unnotes, blesses and chisels bones.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -55,6 +55,7 @@ public class BoneBlesser extends Script {
 	private static final Set<Integer> COIN_SET = Collections.singleton(995);
 	private static final Set<Integer> INV_IDS = new HashSet<>();
 	private static final Set<Integer> ALL_BONE_IDS = new HashSet<>();
+	private long lastPollAt = 0;
 	
 	static {
 		for (BoneType t : BoneType.values()) {
@@ -202,6 +203,14 @@ public class BoneBlesser extends Script {
 	@Override
 	public int poll() {
 		long now = System.currentTimeMillis();
+		if (lastPollAt != 0 && now - lastPollAt > 60_000) {
+			// Large gap is likely a break, count the timeout from when the last poll was so it doesn't instantly timeout on
+			// logging in
+			lastSuccessfulUnnoteAt = now;
+			lastNotedCount = -1;
+			log("BoneBlesser", "Resumed after pause — reset unnote stall timer");
+		}
+		lastPollAt = now;
 		ItemGroupResult inv =
 				getWidgetManager().getInventory().search(INV_IDS);
 		if (inv == null) {return random(120, 180);}
@@ -209,8 +218,8 @@ public class BoneBlesser extends Script {
 		if (selectedBone == null) {
 			if (!detectionTimedOut && now - scriptStartTime > DETECTION_TIMEOUT_MS) {
 				log("BoneBlesser",
-				    "No bones detected after timeout. Stopping."); // // Avoid running indefinitely if the inventory never
-				// contains a valid bone type
+				    "No bones detected after timeout. Stopping.");
+				// Avoid running indefinitely if the inventory never contains a valid bone type
 				stop();
 			}
 			return random(250, 400);
