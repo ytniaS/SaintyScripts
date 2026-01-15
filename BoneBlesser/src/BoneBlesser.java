@@ -23,7 +23,7 @@ import com.osmb.api.walker.WalkConfig;
 @ScriptDefinition(
 		name = "Bone Blesser",
 		author = "Sainty",
-		version = 2.6,
+		version = 2.7,
 		description = "Unnotes, blesses and chisels bones.",
 		skillCategory = SkillCategory.PRAYER
 )
@@ -37,6 +37,9 @@ public class BoneBlesser extends Script {
 	//To prevent clicking Renu for those that have done the quest
 	private static final Rectangle RENU_RECT =
 			new Rectangle(1436, 3168, 3, 2);
+	//virilis wander area
+	private static final Rectangle VIRILIS_AREA =
+			new Rectangle(1433, 3146, 23, 21);
 	private static final int BONE_SHARDS_ID = 29381;
 	private static final long WALK_COOLDOWN_MS = 6000;
 	private static final long STABLE_MS = 500;
@@ -338,6 +341,7 @@ public class BoneBlesser extends Script {
 		if (needUnnote && now - lastUnnoteAt > UNNOTE_COOLDOWN_MS) {
 			for (WorldPosition npc :
 					getWidgetManager().getMinimap().getNPCPositions().asList()) {
+				if (!inRect(npc, VIRILIS_AREA)) {continue;}
 				if (inRect(npc, RENU_RECT)) {continue;}
 				Polygon cube = getSceneProjector().getTileCube(npc, 120);
 				if (cube == null) {continue;}
@@ -349,7 +353,7 @@ public class BoneBlesser extends Script {
 				lastUnnoteAt = now;
 				return random(600, 900);
 			}
-			if (!inRect(me, VIRILIS_RECT)) {walkToRect(VIRILIS_RECT);}
+			if (!inRect(me, VIRILIS_AREA)) {walkToRect(VIRILIS_RECT);}
 		}
 		return random(200, 300);
 	}
