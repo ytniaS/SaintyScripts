@@ -34,3 +34,4 @@ build/
 /.idea/
 /Jars/src.jar
 /Jars/Obf.jar
+tools/src/com/sainty/common/Secrets.java
