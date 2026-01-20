@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" build-on-make="true" name="CharterCraftingTest:jar2">
-    <output-path>$PROJECT_DIR$/out/artifacts/CharterCraftingTest_jar</output-path>
-    <root id="archive" name="CharterCraftingTest.jar">
-      <element id="module-output" name="CharterCraftingTest" />
-    </root>
-  </artifact>
-</component>

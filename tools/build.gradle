@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+project(":tools") {
+
+    tasks.register("extractScriptVersions", JavaExec) {
+        group = "build"
+        description = "Scans compiled script classes and generates versions.json"
+
+        mainClass = "com.sainty.common.ProjectScriptVersionExtractor"
+        args rootProject.projectDir.absolutePath
+
+        doFirst {
+            def scriptProjects = rootProject.subprojects.findAll {
+                it.name != "tools"
+            }
+
+            def classDirs = scriptProjects.collectMany {
+                it.sourceSets.main.output.classesDirs.files
+            }
+
+            classpath =
+                    files(classDirs) +
+                            files("$rootDir/API.jar") +      // 🔑 THIS WAS MISSING
+                            sourceSets.main.runtimeClasspath
+        }
+
+        dependsOn rootProject.subprojects
+                .findAll { it.name != "tools" }
+                .collect { it.tasks.named("compileJava") }
+
+        dependsOn tasks.named("compileJava")
+    }
+}
+

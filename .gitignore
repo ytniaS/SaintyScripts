@@ -27,3 +27,10 @@ API-javadoc.jar
 
 ### Mac OS ###
 .DS_Store
+
+# Gradle / build outputs (ALL projects, ALL levels)
+build/
+.gradle/
+/.idea/
+/Jars/src.jar
+/Jars/Obf.jar

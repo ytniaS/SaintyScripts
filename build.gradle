@@ -1,0 +1,105 @@
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: "java"
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = "UTF-8"
+    }
+
+    // Disable unnecessary tasks
+    tasks.withType(Test).configureEach { enabled = false }
+    tasks.withType(Javadoc).configureEach { enabled = false }
+
+    sourceSets {
+        main {
+            java {
+                setSrcDirs(["src"])
+            }
+            resources {
+                setSrcDirs([])
+            }
+        }
+        test {
+            java {
+                setSrcDirs([])
+            }
+        }
+    }
+
+    dependencies {
+        compileOnly files("$rootDir/API.jar")
+
+        if (project.name != "tools") {
+            implementation project(":tools")
+        }
+    }
+}
+
+subprojects {
+    if (project.name != "tools") {
+
+        tasks.named("jar") {
+            // Build fat JAR
+            from {
+                configurations.runtimeClasspath.collect {
+                    it.isDirectory() ? it : zipTree(it)
+                }
+            }
+
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+            //  Unified JAR output directory
+            destinationDirectory = rootProject.file(
+                    "C:/Users/JackS/Documents/GitHub/SaintyScripts/Jars"
+            )
+
+            // JAR name = project name only
+            archiveBaseName = project.name
+            archiveVersion = ""
+            archiveClassifier = ""
+
+            doFirst {
+                destinationDirectory.get().asFile.mkdirs()
+            }
+
+            doLast {
+                // ALSO deploy to OSMB scripts folder
+                def osmbDir = file("C:/Users/JackS/.osmb/Scripts")
+                osmbDir.mkdirs()
+
+                copy {
+                    from archiveFile
+                    into osmbDir
+                }
+            }
+        }
+    }
+}
+
+tasks.register("buildScripts") {
+    group = "build"
+    description = "Extracts versions, builds all script JARs, and deploys them"
+
+    dependsOn subprojects
+            .findAll { it.name != "tools" }
+            .collect { it.tasks.named("compileJava") }
+
+    // 1. Extract versions first
+    dependsOn(":tools:extractScriptVersions")
+
+    // 2. Build all script JARs (excluding tools)
+    dependsOn subprojects
+            .findAll { it.name != "tools" }
+            .collect { it.tasks.named("jar") }
+}

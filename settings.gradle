@@ -1,0 +1,24 @@
+rootProject.name = "SaintyScripts"
+
+def ignored = [
+        ".idea", ".gradle", "gradle", "out", "build", "production"
+] as Set
+
+file(rootDir).eachDir { dir ->
+    if (ignored.contains(dir.name)) return
+
+    // include tools explicitly even if it doesn't match the pattern
+    if (dir.name == "tools") {
+        include("tools")
+        return
+    }
+
+    // Any directory with a src folder becomes a module automatically
+    if (new File(dir, "src").exists()) {
+        include(dir.name)
+    }
+}
+
+include 'Obf'
+include 'BabaYagaBuyer:src:Telemetry'
+include 'winer'

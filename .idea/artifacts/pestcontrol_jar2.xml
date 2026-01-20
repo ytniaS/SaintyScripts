@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" build-on-make="true" name="pestcontrol:jar2">
-    <output-path>$PROJECT_DIR$/out/artifacts/pestcontrol_jar</output-path>
-    <root id="archive" name="pestcontrol.jar">
-      <element id="module-output" name="pestcontrol" />
-    </root>
-  </artifact>
-</component>

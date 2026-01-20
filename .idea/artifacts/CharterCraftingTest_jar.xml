@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" build-on-make="true" name="CharterCraftingTest:jar">
-    <output-path>$USER_HOME$/.osmb/Scripts</output-path>
-    <root id="archive" name="CharterCraftingTest.jar">
-      <element id="module-output" name="CharterCraftingTest" />
-    </root>
-  </artifact>
-</component>

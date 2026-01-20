@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" build-on-make="true" name="Libation">
-    <output-path>$USER_HOME$/.osmb/Scripts</output-path>
-    <root id="archive" name="Libation.jar">
-      <element id="module-output" name="libation" />
-    </root>
-  </artifact>
-</component>

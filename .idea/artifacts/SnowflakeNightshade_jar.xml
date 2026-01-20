@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" build-on-make="true" name="SnowflakeNightshade:jar">
-    <output-path>$PROJECT_DIR$/out/artifacts/SnowflakeNightshade_jar</output-path>
-    <root id="archive" name="SnowflakeNightshade.jar">
-      <element id="module-output" name="SnowflakeNightshade" />
-    </root>
-  </artifact>
-</component>
