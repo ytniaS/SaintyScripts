@@ -28,7 +28,7 @@ import static com.osmb.script.crafting.chartercrafting.utils.Utilities.roundDown
 
 public class ShopHandler {
     private final ScriptCore core;
-    public final ShopInterface shopInterface;
+    private final ShopInterface shopInterface;
 
     public ShopHandler(ScriptCore core) {
         this.core = core;

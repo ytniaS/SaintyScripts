@@ -29,15 +29,12 @@ public class CharterCrafting extends Script {
     private CraftHandler craftHandler;
     private DepositBoxHandler depositBoxHandler;
     private boolean hopping = false;
-    private int lastWorld = -1;
-
     public CharterCrafting(Object scriptCore) {
         super(scriptCore);
     }
 
     @Override
     public void onStart() {
-        lastWorld = getCurrentWorld() != null ? getCurrentWorld() : -1;
         this.shopHandler = new ShopHandler(this);
         this.furnaceHandler = new FurnaceHandler(this);
         this.bankHandler = new BankHandler(this);
@@ -55,12 +52,6 @@ public class CharterCrafting extends Script {
 
     @Override
     public int poll() {
-        Integer world = getCurrentWorld();
-        if (hopping && world != null && world != lastWorld) {
-            hopping = false;
-            lastWorld = world;
-        }
-
         if (hasNoHopProfile()) {
             log(CharterCrafting.class, "No hop profile selected, make sure to select one before running the script.");
             stop();
@@ -92,22 +83,16 @@ public class CharterCrafting extends Script {
     }
 
     private void hopWorlds() {
-        if (hopping) {
-            return;
-        }
         if (hasNoHopProfile()) {
             return;
         }
-
-        hopping = true;
-        hopFlag = false;
         getProfileManager().forceHop();
+        hopFlag = false;
     }
-
 
     @Override
     public boolean canHopWorlds() {
-        return hopFlag || hopping;
+        hopFlag || hopping
     }
 
     @Override
@@ -123,25 +108,6 @@ public class CharterCrafting extends Script {
     }
 
     private void decideTask() {
-        if (hopFlag) {
-            // close interfaces first then hop? Brute force method to get hopping working
-            if (getWidgetManager().getBank().isVisible()) {
-                getWidgetManager().getBank().close();
-                return;
-            }
-            if (getWidgetManager().getDepositBox().isVisible()) {
-                getWidgetManager().getDepositBox().close();
-                return;
-            }
-            if (shopHandler != null && shopHandler.interfaceVisible()) {
-                shopHandler.shopInterface.close();
-                return;
-            }
-
-            hopWorlds();
-            return;
-        }
-
         if (depositing) {
             depositBoxHandler.handle();
             return;
@@ -171,17 +137,11 @@ public class CharterCrafting extends Script {
         }
         if (shouldOpenShop(inventorySnapshot)) {
             if (hopFlag) {
-                if (shopHandler.interfaceVisible()) {
-                    shopHandler.shopInterface.close();
-                    return;
-                }
-
                 hopWorlds();
-                return;
             } else {
                 shopHandler.open();
-                return;
             }
+            return;
         }
         switch (selectedMethod) {
             case BUY_AND_BANK -> depositBoxHandler.handle();
