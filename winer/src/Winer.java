@@ -23,7 +23,7 @@ import java.util.Set;
         author = "Sainty",
         version = 1.1,
         description = "Buys wines or mixes them with Sunfire splinters.",
-        skillCategory = SkillCategory.CRAFTING
+        skillCategory = SkillCategory.OTHER
 )
 public class Winer extends Script {
 
