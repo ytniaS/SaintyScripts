@@ -311,8 +311,8 @@ public class CaveNightshadeGatherer extends Script {
             log("Cave Nightshade missing — hopping world.");
             if (canHop()) {
                 getProfileManager().forceHop();
+                return;
             }
-            return;
         }
         Polygon tight = tilePoly.getResized(0.4);
         if (tight == null ||
@@ -338,6 +338,7 @@ public class CaveNightshadeGatherer extends Script {
         }
         if (canHop()) {
             getProfileManager().forceHop();
+            return;
         }
     }
 

@@ -28,7 +28,7 @@ import static com.osmb.script.crafting.chartercrafting.utils.Utilities.roundDown
 
 public class ShopHandler {
     private final ScriptCore core;
-    private final ShopInterface shopInterface;
+    public final ShopInterface shopInterface;
 
     public ShopHandler(ScriptCore core) {
         this.core = core;
@@ -60,7 +60,7 @@ public class ShopHandler {
             return;
         }
 
-        if(getExcessItemsToDrop(inventorySnapshot) != null) {
+        if (getExcessItemsToDrop(inventorySnapshot) != null) {
             core.log(ShopHandler.class, "We have an excess amount of an item, closing shop to drop them.");
             shopInterface.close();
             return;
@@ -186,7 +186,7 @@ public class ShopHandler {
             return false;
         }
         Integer amountSelected = selectedAmount.get();
-        core.log(ShopHandler.class,"Amount selected: " + amountSelected);
+        core.log(ShopHandler.class, "Amount selected: " + amountSelected);
 
         if (amountSelected == null || amountSelected != amount) {
             core.log(ShopHandler.class, "All? " + all);
