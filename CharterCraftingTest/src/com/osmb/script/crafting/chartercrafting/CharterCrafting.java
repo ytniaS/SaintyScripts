@@ -29,6 +29,7 @@ public class CharterCrafting extends Script {
     private CraftHandler craftHandler;
     private DepositBoxHandler depositBoxHandler;
     private boolean hopping = false;
+
     public CharterCrafting(Object scriptCore) {
         super(scriptCore);
     }
@@ -92,7 +93,7 @@ public class CharterCrafting extends Script {
 
     @Override
     public boolean canHopWorlds() {
-        hopFlag || hopping
+        return hopFlag || hopping;
     }
 
     @Override
