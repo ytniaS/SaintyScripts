@@ -28,7 +28,7 @@ public class CharterCrafting extends Script {
     private BankHandler bankHandler;
     private CraftHandler craftHandler;
     private DepositBoxHandler depositBoxHandler;
-    private boolean hopping = false;
+    private int lastWorld = -1;
 
     public CharterCrafting(Object scriptCore) {
         super(scriptCore);
@@ -53,6 +53,14 @@ public class CharterCrafting extends Script {
 
     @Override
     public int poll() {
+        Integer world = getCurrentWorld();
+
+        if (world != null && world != lastWorld) {
+            hopFlag = false;
+            lastWorld = world;
+        }
+
+
         if (hasNoHopProfile()) {
             log(CharterCrafting.class, "No hop profile selected, make sure to select one before running the script.");
             stop();
@@ -93,7 +101,7 @@ public class CharterCrafting extends Script {
 
     @Override
     public boolean canHopWorlds() {
-        return hopFlag || hopping;
+        return hopFlag;
     }
 
     @Override
