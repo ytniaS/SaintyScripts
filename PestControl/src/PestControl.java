@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
         name = "Dumb PestControl",
         author = "Sainty",
-        version = 2.3,
+        version = 2.4,
         description = "Dumb Pest control - fights monsters around the void knight",
         skillCategory = SkillCategory.COMBAT
 )
@@ -338,11 +338,18 @@ public class PestControl extends Script {
                         return t != null && t.toLowerCase().startsWith("cross");
                     })
                     .findFirst()
-                    .orElse(null);
+                    .orElseGet(() -> {
+                        // Fallback: if no matching option found, try the first option
+                        System.out.println("[PestControl] No 'cross/board/gangplank' option found, attempting first menu option");
+                        return menu.isEmpty() ? null : menu.get(0);
+                    });
         });
 
         if (!crossed) {
-            return; //
+            // Reset boarding state if click failed
+            System.out.println("[PestControl] Failed to board boat, resetting boarding state");
+            boardingInProgress = false;
+            return;
         }
         lastBoardClick = System.currentTimeMillis();
         boardingInProgress = true;
