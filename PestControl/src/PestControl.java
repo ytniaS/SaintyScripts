@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
         name = "Dumb PestControl",
         author = "Sainty",
-        version = 2.2,
+        version = 2.3,
         description = "Dumb Pest control - fights monsters around the void knight",
         skillCategory = SkillCategory.COMBAT
 )
@@ -327,24 +327,33 @@ public class PestControl extends Script {
         if (!getWidgetManager().insideGameScreen(click, Collections.emptyList())) {
             return;
         }
-        boolean crossed = getFinger().tapGameScreen(click, menu ->
-                menu.stream()
-                        .filter(m -> m.getRawText() != null &&
-                                m.getRawText().toLowerCase().startsWith("cross"))
-                        .findFirst()
-                        .orElse(null)
-        );
-        if (crossed) {
-            lastBoardClick = System.currentTimeMillis();
-            boardingInProgress = true;
-            boardingStart = lastBoardClick;
-            inGame = true;
-            instanceSettled = false;
-            instanceResolveUntil = System.currentTimeMillis() + random(4500, 6000);
-            recoveringToCombat = false;
-            recoverTarget = null;
+        boolean crossed = getFinger().tapGameScreen(click, menu -> {
+            if (menu == null || menu.isEmpty()) {
+                return null;
+            }
+
+            return menu.stream()
+                    .filter(m -> {
+                        String t = m.getRawText();
+                        return t != null && t.toLowerCase().startsWith("cross");
+                    })
+                    .findFirst()
+                    .orElse(null);
+        });
+
+        if (!crossed) {
+            return; //
         }
+        lastBoardClick = System.currentTimeMillis();
+        boardingInProgress = true;
+        boardingStart = lastBoardClick;
+        inGame = true;
+        instanceSettled = false;
+        instanceResolveUntil = System.currentTimeMillis() + random(4500, 6000);
+        recoveringToCombat = false;
+        recoverTarget = null;
     }
+
 
     private boolean ensureCorrectWorld() {
         if (!canBreak()) {
