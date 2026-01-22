@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
         name = "Dumb PestControl",
         author = "Sainty",
-        version = 2.1,
+        version = 2.2,
         description = "Dumb Pest control - fights monsters around the void knight",
         skillCategory = SkillCategory.COMBAT
 )
@@ -216,8 +216,13 @@ public class PestControl extends Script {
             return;
         }
         //if in combat and the target overlay is visible then do nothing
-        if (attacking && targetOverlay != null && targetOverlay.isVisible()) {
-            return;
+        if (attacking) {
+            if (targetOverlay == null || !targetOverlay.isVisible()) {
+                attacking = false;
+                targetOverlay = null;
+            } else {
+                return;
+            }
         }
         attacking = false;
         targetOverlay = null;
@@ -226,8 +231,11 @@ public class PestControl extends Script {
 
     private boolean attackNpc() {
         WorldPosition me = getWorldPosition();
-        List<WorldPosition> npcs =
-                getWidgetManager().getMinimap().getNPCPositions().asList();
+        var minimap = getWidgetManager().getMinimap();
+        if (minimap == null) {
+            return false;
+        }
+        List<WorldPosition> npcs = minimap.getNPCPositions().asList();
         //gets nearby NPCs skipping the void knights
         List<WorldPosition> targets = npcs.stream()
                 .filter(COMBAT_AREA::contains)
@@ -242,7 +250,8 @@ public class PestControl extends Script {
                 continue;
             }
             poly = poly.getResized(0.7);
-            if (!getWidgetManager().insideGameScreen(poly, Collections.emptyList())) {
+            var wm = getWidgetManager();
+            if (wm == null || !wm.insideGameScreen(poly, Collections.emptyList())) {
                 continue;
             }
             pollFramesHuman(() -> false, random(20, 70));
