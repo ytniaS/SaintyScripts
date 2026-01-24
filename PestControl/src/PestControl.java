@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
         name = "Dumb PestControl",
         author = "Sainty",
-        version = 2.4,
+        version = 2.5,
         description = "Dumb Pest control - fights monsters around the void knight",
         skillCategory = SkillCategory.COMBAT
 )
@@ -231,31 +231,50 @@ public class PestControl extends Script {
 
     private boolean attackNpc() {
         WorldPosition me = getWorldPosition();
-        var minimap = getWidgetManager().getMinimap();
+        var wm = getWidgetManager();
+        if (wm == null) {
+            return false;
+        }
+
+        var minimap = wm.getMinimap();
         if (minimap == null) {
             return false;
         }
+
         List<WorldPosition> npcs = minimap.getNPCPositions().asList();
-        //gets nearby NPCs skipping the void knights
+
         List<WorldPosition> targets = npcs.stream()
                 .filter(COMBAT_AREA::contains)
-                .filter(p -> !p.equals(VOID_KNIGHT_TILE)) // don't check npcs
-                .filter(p -> !p.equals(SQUIRE_TILE)) // don't check npcs
+                .filter(p -> !p.equals(VOID_KNIGHT_TILE))
+                .filter(p -> !p.equals(SQUIRE_TILE))
                 .sorted(Comparator.comparingDouble(p -> p.distanceTo(me)))
                 .limit(6)
                 .collect(Collectors.toList());
+
         for (WorldPosition npc : targets) {
             Polygon poly = getSceneProjector().getTileCube(npc, 75);
             if (poly == null) {
                 continue;
             }
-            poly = poly.getResized(0.7);
-            var wm = getWidgetManager();
-            if (wm == null || !wm.insideGameScreen(poly, Collections.emptyList())) {
+
+            Polygon resized;
+            try {
+                resized = poly.getResized(0.7);
+            } catch (Exception e) {
                 continue;
             }
+
+            if (resized == null || resized.getBounds() == null) {
+                continue;
+            }
+
+            if (!wm.insideGameScreen(resized, Collections.emptyList())) {
+                continue;
+            }
+
             pollFramesHuman(() -> false, random(20, 70));
-            if (getFinger().tapGameScreen(poly, "Attack")) {
+
+            if (getFinger().tapGameScreen(resized, "Attack")) {
                 attacking = true;
                 targetOverlay = new HealthOverlay(this);
                 return true;
@@ -263,6 +282,7 @@ public class PestControl extends Script {
         }
         return false;
     }
+
 
     private boolean tryWalkInsideCombatArea(WorldPosition target) {
         if (!instanceSettled || target == null) {
