@@ -114,7 +114,6 @@ public class SettingsUI extends VBox {
             refreshPremade.run();
             boolean isPremade = modeBox.getValue() == Mode.PRE_MADE;
             productBox.setDisable(c == LogType.REDWOOD || isPremade);
-            // Log basket is always disabled - API doesn't support hover/submenu
         });
 
         modeBox.valueProperty().addListener((a, b, mode) -> {
