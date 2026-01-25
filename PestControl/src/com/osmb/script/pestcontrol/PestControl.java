@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
         name = "Dumb PestControl",
         author = "Sainty",
-        version = 3.0,
+        version = 3.1,
         description = "Dumb Pest control - fights monsters around the void knight",
         skillCategory = SkillCategory.COMBAT
 )
@@ -62,6 +62,7 @@ public class PestControl extends Script {
     private static final int SCENE_STABLE_TIME = 600;
     private static final int RECOVER_COOLDOWN_MS = 1200;
     private static final int RESULT_OBSERVE_TIME = 2000;
+    private static final int MAX_POLL_BLOCK_MS = 400;
     private long lastBoardClick = 0;
     private long boardingStart = 0;
     private boolean boardingInProgress = false;
@@ -89,6 +90,8 @@ public class PestControl extends Script {
     private long startTime;
     private static final String SCRIPT_NAME = "PestControl";
     private long scriptStartTime;
+    private static final long TELEMETRY_INTERVAL_MS = 30_000;
+    private long lastTelemetryFlushMs = 0;
 
     private enum Boat {
         NOVICE("Novice", new WorldPosition(2658, 2639, 0), 2),
@@ -131,14 +134,18 @@ public class PestControl extends Script {
 
     @Override
     public int poll() {
-        Telemetry.flush(
-                SCRIPT_NAME,
-                scriptStartTime,
-                Map.of(
-                        "PC_points_gained", (long) getTotalPoints(),
-                        "games_won", (long) getGamesWon()
-                )
-        );
+        long now = System.currentTimeMillis();
+        if (now - lastTelemetryFlushMs >= TELEMETRY_INTERVAL_MS) {
+            lastTelemetryFlushMs = now;
+            long start = scriptStartTime;
+            long points = getTotalPoints();
+            long wins = getGamesWon();
+            Thread t = new Thread(() -> Telemetry.flush(
+                    SCRIPT_NAME, start, Map.of("PC_points_gained", points, "games_won", wins)));
+            t.setDaemon(true);
+            t.setName("PestControl-telemetry");
+            t.start();
+        }
         WorldPosition me = getWorldPosition();
         if (me == null) {
             return 300;
@@ -270,7 +277,7 @@ public class PestControl extends Script {
                 continue;
             }
 
-            pollFramesHuman(() -> true, RandomUtils.gaussianRandom(20, 70, 12, 12));
+            pollFramesHuman(() -> true, Math.min(MAX_POLL_BLOCK_MS, RandomUtils.gaussianRandom(20, 70, 12, 12)));
 
             if (getFinger().tapGameScreen(resized, "Attack")) {
                 attacking = true;
@@ -301,7 +308,7 @@ public class PestControl extends Script {
         boolean issued = getWalker().walkTo(target, cfg);
         if (issued) {
             lastWalkAt = now;
-            pollFramesHuman(() -> true, RandomUtils.gaussianRandom(60, 200, 35, 35));
+            pollFramesHuman(() -> true, Math.min(MAX_POLL_BLOCK_MS, RandomUtils.gaussianRandom(60, 200, 35, 35)));
         }
         return true;
     }
@@ -404,7 +411,7 @@ public class PestControl extends Script {
         boolean issued = getWalker().walkTo(target, cfg);
         if (issued) {
             lastWalkAt = now;
-            pollFramesHuman(() -> true, RandomUtils.gaussianRandom(60, 160, 25, 25));
+            pollFramesHuman(() -> true, Math.min(MAX_POLL_BLOCK_MS, RandomUtils.gaussianRandom(60, 160, 25, 25)));
         }
         return true;
     }
