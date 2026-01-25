@@ -20,6 +20,7 @@ import javafx.scene.Scene;
 import java.awt.*;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @ScriptDefinition(
@@ -66,6 +67,8 @@ public class LibationBowl extends Script {
 
     private static final long TRAVEL_COOLDOWN_MS = 4500;
     private static final long WALK_COOLDOWN_MS = 3000;
+    private static final int BANK_OPEN_TIMEOUT_MIN = 1800;
+    private static final int BANK_OPEN_TIMEOUT_MAX = 3200;
 
     private static final String SCRIPT_NAME = "LibationBowl";
 
@@ -378,29 +381,15 @@ public class LibationBowl extends Script {
             return true;
         }
 
-        if (getWidgetManager().getBank().isVisible()) {
-            // Bank already open, proceed with deposits/withdrawals
-        } else {
+        if (!openAnyBank()) {
             WorldPosition me = getWorldPosition();
             if (me == null) return true;
-
             Polygon poly = getSceneProjector().getTilePoly(BANKER_TILE);
             if (poly == null ||
                     getWidgetManager().insideGameScreenFactor(poly, Collections.emptyList()) < 0.25) {
                 walkToArea(BANKER_AREA);
-                return true;
             }
-
-            Polygon resized = poly.getResized(0.4);
-            if (resized == null) return true;
-
-            log("LibationBowl", "Opening bank (jugs + wine).");
-            getFinger().tap(resized, "Bank");
-
-            if (!pollFramesUntil(() -> getWidgetManager().getBank().isVisible(),
-                    RandomUtils.weightedRandom(1800, 3200, 0.0017))) {
-                return true;
-            }
+            return true;
         }
 
         // deposit empty jugs
@@ -603,6 +592,46 @@ public class LibationBowl extends Script {
             return;
         }
         getWidgetManager().getBank().deposit(itemId, amt);
+    }
+
+    private boolean openAnyBank() {
+        if (getWidgetManager().getBank().isVisible()) {
+            return true;
+        }
+
+        List<RSObject> banks = getObjectManager().getObjects(obj ->
+                obj != null && (
+                        "Bank booth".equals(obj.getName()) ||
+                        "Bank chest".equals(obj.getName()) ||
+                        "Closed booth".equals(obj.getName()) ||
+                        "Bank table".equals(obj.getName())
+                )
+        );
+
+        if (banks.isEmpty()) {
+            log("LibationBowl", "No bank objects found");
+            return false;
+        }
+
+        RSObject bankObj = (RSObject) getUtils().getClosest(banks);
+        if (bankObj == null) {
+            return false;
+        }
+
+        if ("Closed booth".equals(bankObj.getName())) {
+            if (!bankObj.interact("Bank booth", new String[]{"Bank"})) {
+                return false;
+            }
+        } else {
+            if (!bankObj.interact("Bank")) {
+                return false;
+            }
+        }
+
+        return pollFramesUntil(
+                () -> getWidgetManager().getBank().isVisible(),
+                RandomUtils.weightedRandom(BANK_OPEN_TIMEOUT_MIN, BANK_OPEN_TIMEOUT_MAX, 0.0017)
+        );
     }
 
     private boolean inRegion(int region) {
