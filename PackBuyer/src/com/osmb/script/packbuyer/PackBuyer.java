@@ -8,6 +8,7 @@ import com.osmb.api.script.Script;
 import com.osmb.api.script.ScriptDefinition;
 import com.osmb.api.script.SkillCategory;
 import com.osmb.api.shape.Polygon;
+import com.osmb.api.utils.RandomUtils;
 import com.osmb.api.visual.drawing.Canvas;
 import com.osmb.script.packbuyer.javafx.ScriptOptions;
 import com.sainty.common.Telemetry;
@@ -35,13 +36,18 @@ public class PackBuyer extends Script {
     private static final int AMYLASE_PACK = 12641;
     private static final int AMYLASE_CRYSTAL = 12640;
     private static final int MARK_OF_GRACE = 11849;
-    private long totalCost = 0;
-    private long packsOpened = 0;
-    private long itemsGained = 0;
     private static final String SCRIPT_NAME = "PackBuyer";
-    private long scriptStartTime;
     private static final Font PAINT_FONT = new Font("Arial", Font.PLAIN, 13);
-    //shops :
+
+    private static final int SHOP_OPEN_TIMEOUT_MIN = 3000;
+    private static final int SHOP_OPEN_TIMEOUT_MAX = 6000;
+    private static final int PURCHASE_TIMEOUT = 3500;
+    private static final int OPEN_PACK_TIMEOUT = 3500;
+    private static final int MAX_NPC_DISTANCE = 6;
+    private static final double TILE_CUBE_RESIZE = 0.6;
+
+    private static final WorldPosition GRACE_EXCLUDED_TILE = new WorldPosition(3051, 4963, 1);
+
     private static final PackModeConfig FEATHER_GERRANT =
             new PackModeConfig(
                     BuyMode.FEATHERS,
@@ -55,6 +61,7 @@ public class PackBuyer extends Script {
                     50,
                     200
             );
+
     private static final PackModeConfig BROAD_SPIRA =
             new PackModeConfig(
                     BuyMode.BROAD_ARROWHEADS,
@@ -68,6 +75,7 @@ public class PackBuyer extends Script {
                     50,
                     5500
             );
+
     private static final PackModeConfig BROAD_TURAEL =
             new PackModeConfig(
                     BuyMode.BROAD_ARROWHEADS,
@@ -81,9 +89,10 @@ public class PackBuyer extends Script {
                     50,
                     5500
             );
+
     private static final PackModeConfig AMYLASE_GRACE =
             new PackModeConfig(
-                    BuyMode.AMYLASE, // ← new enum value
+                    BuyMode.AMYLASE,
                     "Amylase packs – Grace (Rogues' Den)",
                     "grace's graceful clothing",
                     new RectangleArea(3046, 4961, 6, 4, 1),
@@ -94,13 +103,20 @@ public class PackBuyer extends Script {
                     50,
                     10
             );
+
     private PackModeConfig config;
     private GenericShopInterface shop;
-    private boolean hopFlag;
-    private boolean menuDesync;
+    private boolean hopFlag = false;
+    private boolean menuDesync = false;
+    private Integer lastWorld = null;
+
+    private long totalCost = 0;
+    private long packsOpened = 0;
+    private long itemsGained = 0;
+    private long scriptStartTime;
     private long startTime;
-    private static final WorldPosition GRACE_EXCLUDED_TILE =
-            new WorldPosition(3051, 4963, 1);
+
+    private int cachedPackCount = 0;
 
     public PackBuyer(Object core) {
         super(core);
@@ -112,8 +128,10 @@ public class PackBuyer extends Script {
             stop();
             return;
         }
+
         scriptStartTime = System.currentTimeMillis();
         Telemetry.sessionStart(SCRIPT_NAME);
+
         ScriptOptions ui = new ScriptOptions(
                 FEATHER_GERRANT,
                 BROAD_SPIRA,
@@ -128,9 +146,13 @@ public class PackBuyer extends Script {
                             " target=" + config.targetTotal);
                 }
         );
+
         Scene scene = new Scene(ui);
         scene.getStylesheets().add("style.css");
         getStageController().show(scene, "Pack Buyer", true);
+
+        hopFlag = false;
+        menuDesync = false;
     }
 
     @Override
@@ -141,16 +163,19 @@ public class PackBuyer extends Script {
         return new int[]{config.region};
     }
 
-    private int getTotalPacksOpened() {
-        return config != null ? config.totalOpened : 0;
-    }
-
-    private long getTotalGpSpent() {
-        return totalCost;
+    @Override
+    public boolean canHopWorlds() {
+        return hopFlag;
     }
 
     @Override
     public int poll() {
+        Integer world = getCurrentWorld();
+        if (world != null && !world.equals(lastWorld)) {
+            hopFlag = false;
+            lastWorld = world;
+        }
+
         Telemetry.flush(
                 SCRIPT_NAME,
                 scriptStartTime,
@@ -164,45 +189,50 @@ public class PackBuyer extends Script {
         if (menuDesync) {
             log("Menu desync → closing + hopping");
             closeShop();
-            getProfileManager().forceHop();
+            hopFlag = true;
             menuDesync = false;
             return 0;
         }
-        if (hasPack()) {
-            log("Pack detected in inventory");
-            if (shop.isVisible()) {
-                log("Closing shop to open packs");
-                closeShop();
-                return 0;
-            }
-            openPack();
-            return 0;
-        }
-        if (config.totalOpened >= config.targetTotal) {
-            log("Target reached → stopping");
-            closeShop();
-            stop();
-            return 0;
-        }
+
         if (shop.isVisible()) {
             log("Shop visible → handleShop()");
             handleShop();
             return 0;
         }
+
+        if (hasPack()) {
+            log("Pack detected in inventory");
+            openPack();
+            return 0;
+        }
+
+        if (config.totalOpened >= config.targetTotal) {
+            log("Target reached → stopping");
+            stop();
+            return 0;
+        }
+
+        if (!hasCurrency()) {
+            log("Insufficient currency → stopping");
+            stop();
+            return 0;
+        }
+
         if (hopFlag) {
             log("Hop flag set → hopping");
             getProfileManager().forceHop();
-            hopFlag = false;
             return 0;
         }
+
+        cachedPackCount = getInventoryAmount(config.packItemId);
         openShop();
         return 0;
     }
 
-    //check for required currency depending on shop, expandable in case more shops are added
     private boolean hasCurrency() {
         int currencyId;
         int requiredAmount;
+
         if (config.mode == BuyMode.AMYLASE) {
             currencyId = MARK_OF_GRACE;
             requiredAmount = 10;
@@ -210,8 +240,8 @@ public class PackBuyer extends Script {
             currencyId = COINS;
             requiredAmount = 10000;
         }
-        ItemGroupResult inv =
-                getWidgetManager().getInventory().search(Set.of(currencyId));
+
+        ItemGroupResult inv = getWidgetManager().getInventory().search(Set.of(currencyId));
         return inv != null && inv.getAmount(currencyId) >= requiredAmount;
     }
 
@@ -220,76 +250,80 @@ public class PackBuyer extends Script {
             log("Failed to set buy amount");
             return;
         }
+
         ItemGroupResult shopGroup = shop.search(Set.of(config.packItemId));
         if (shopGroup == null) {
             log("ShopGroup null");
             return;
         }
+
         ItemSearchResult shopItem = shopGroup.getItem(config.packItemId);
         if (shopItem == null) {
             log("ShopItem null");
             return;
         }
+
         int stock = shopItem.getStackAmount();
         int alreadyBought = config.baseStock - stock;
+
         if (config.perWorld > 0 && alreadyBought >= config.perWorld) {
             log("Per-world cap reached → hop");
             closeShop();
             hopFlag = true;
             return;
         }
-        int before = getInventoryAmount(config.packItemId);
+
         if (!shopItem.interact()) {
             log("Interact failed → menuDesync");
             menuDesync = true;
             return;
         }
-        boolean success = pollFramesUntil(
-                () -> getInventoryAmount(config.packItemId) > before,
-                3500
-        );
+
+        pollFramesHuman(() -> true, 800);
+
+        closeShop();
+
+        boolean success = pollFramesUntil(() -> !shop.isVisible(), 2000);
         if (!success) {
-            log("No buy possible → hop");
-            closeShop();
-            hopFlag = true;
+            log("Shop didn't close");
             return;
         }
+
         int after = getInventoryAmount(config.packItemId);
-        int gained = Math.max(0, after - before);
+        int gained = Math.max(0, after - cachedPackCount);
+
         if (gained <= 0) {
             log("Inventory delta zero → hop");
-            closeShop();
             hopFlag = true;
             return;
         }
-        long batchCost = calculateBatchCost(
-                config.basePrice,
-                alreadyBought,
-                gained
-        );
+
+        long batchCost = calculateBatchCost(config.basePrice, alreadyBought, gained);
         totalCost += batchCost;
         log("Bought pack x" + gained + " | cost=" + batchCost);
-        closeShop();
     }
 
     private void openPack() {
-        ItemGroupResult inv =
-                getWidgetManager().getInventory().search(Set.of(config.packItemId));
+        ItemGroupResult inv = getWidgetManager().getInventory().search(Set.of(config.packItemId));
         if (inv == null) {
             return;
         }
+
         ItemSearchResult pack = inv.getItem(config.packItemId);
         if (pack == null) {
             return;
         }
+
         int before = getInventoryAmount(config.openedItemId);
+
         if (!getFinger().tap(pack.getBounds())) {
             log("Failed to tap pack");
             return;
         }
+
         if (pollFramesUntil(
                 () -> getInventoryAmount(config.openedItemId) > before,
-                3500
+                OPEN_PACK_TIMEOUT
         )) {
             int after = getInventoryAmount(config.openedItemId);
             packsOpened++;
@@ -315,32 +349,41 @@ public class PackBuyer extends Script {
         if (npcPositions == null) {
             return;
         }
+
         WorldPosition me = getWorldPosition();
         if (me == null) {
             return;
         }
+
         for (WorldPosition pos : npcPositions) {
-            if (config.mode == BuyMode.AMYLASE &&
-                    pos.equals(GRACE_EXCLUDED_TILE)) {
+            if (config.mode == BuyMode.AMYLASE && pos.equals(GRACE_EXCLUDED_TILE)) {
                 continue;
             }
-            if (me.distanceTo(pos) > 6) {
+
+            if (me.distanceTo(pos) > MAX_NPC_DISTANCE) {
                 continue;
             }
+
             Polygon cube = getSceneProjector().getTileCube(pos, 90);
             if (cube == null) {
                 continue;
             }
-            Polygon resized = cube.getResized(0.6);
+
+            Polygon resized = cube.getResized(TILE_CUBE_RESIZE);
             if (resized == null) {
                 continue;
             }
+
             if (!getWidgetManager().insideGameScreen(resized, Collections.emptyList())) {
                 continue;
             }
+
             if (getFinger().tapGameScreen(resized, "Trade")) {
                 log("Attempted to open shop");
-                pollFramesHuman(() -> shop.isVisible(), random(3000, 6000));
+                pollFramesHuman(
+                        () -> shop.isVisible(),
+                        RandomUtils.weightedRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX, 0.002)
+                );
                 return;
             }
         }
@@ -350,6 +393,15 @@ public class PackBuyer extends Script {
         if (shop != null && shop.isVisible()) {
             shop.close();
         }
+    }
+
+    private long calculateBatchCost(int basePrice, int alreadyBought, int quantity) {
+        double total = 0;
+        for (int i = 0; i < quantity; i++) {
+            double multiplier = 1.0 + ((alreadyBought + i) * 0.001);
+            total += basePrice * multiplier;
+        }
+        return Math.round(total);
     }
 
     private void drawHeader(Canvas c, String author, String title, int x, int y) {
@@ -377,15 +429,6 @@ public class PackBuyer extends Script {
         return formatRuntime(ms);
     }
 
-    private long calculateBatchCost(int basePrice, int alreadyBought, int quantity) {
-        double total = 0;
-        for (int i = 0; i < quantity; i++) {
-            double multiplier = 1.0 + ((alreadyBought + i) * 0.001); // price changes by 0.1% per item bought
-            total += basePrice * multiplier;
-        }
-        return Math.round(total);
-    }
-
     private String formatCost(long gp) {
         if (gp >= 1_000_000) {
             return String.format("%.2fM gp", gp / 1_000_000D);
@@ -402,24 +445,21 @@ public class PackBuyer extends Script {
         if (elapsed <= 0) {
             return;
         }
+
         double hours = elapsed / 3_600_000D;
-        long perHour = hours > 0.01
-                ? (long) (config.totalOpened / hours)
-                : 0;
+        long perHour = hours > 0.01 ? (long) (config.totalOpened / hours) : 0;
+
         int remaining = Math.max(0, config.targetTotal - config.totalOpened);
         String eta = "—";
         if (perHour > 0 && remaining > 0) {
             long etaMs = (long) ((remaining / (double) perHour) * 3_600_000D);
             eta = formatETA(etaMs);
         }
-        double avgCostPerItem =
-                config.totalOpened > 0
-                        ? totalCost / (double) config.totalOpened
-                        : 0;
-        long estimatedRemainingCost =
-                (long) (remaining * avgCostPerItem);
-        long estimatedTotalCost =
-                totalCost + estimatedRemainingCost;
+
+        double avgCostPerItem = config.totalOpened > 0 ? totalCost / (double) config.totalOpened : 0;
+        long estimatedRemainingCost = (long) (remaining * avgCostPerItem);
+        long estimatedTotalCost = totalCost + estimatedRemainingCost;
+
         int x = 16;
         int y = 40;
         int w = 240;
@@ -427,38 +467,29 @@ public class PackBuyer extends Script {
         int lineH = 14;
         int lines = 5;
         int bodyH = (lines * lineH) + 10;
+
         int BG = new Color(12, 14, 20, 235).getRGB();
         int BORDER = new Color(100, 100, 110, 180).getRGB();
         int DIVIDER = new Color(255, 255, 255, 40).getRGB();
+
         Font bodyFont = new Font("Segoe UI", Font.PLAIN, 13);
+
         c.fillRect(x, y, w, headerH + bodyH, BG, 0.95);
         c.drawRect(x, y, w, headerH + bodyH, BORDER);
+
         drawHeader(c, "Sainty", "Pack Buyer", x + 14, y + 16);
+
         c.fillRect(x + 10, y + headerH, w - 20, 1, DIVIDER);
+
         int ty = y + headerH + 18;
-        c.drawText(
-                "Opened: " + config.totalOpened + " / " + config.targetTotal,
-                x + 14, ty, 0xFFFFFFFF, bodyFont
-        );
+        c.drawText("Opened: " + config.totalOpened + " / " + config.targetTotal, x + 14, ty, 0xFFFFFFFF, bodyFont);
         ty += lineH;
-        c.drawText(
-                "Rate: " + perHour + "/hr",
-                x + 14, ty, 0xFF66CCFF, bodyFont
-        );
+        c.drawText("Rate: " + perHour + "/hr", x + 14, ty, 0xFF66CCFF, bodyFont);
         ty += lineH;
-        c.drawText(
-                "Time to target: " + eta,
-                x + 14, ty, 0xFFFFAA00, bodyFont
-        );
+        c.drawText("Time to target: " + eta, x + 14, ty, 0xFFFFAA00, bodyFont);
         ty += lineH;
-        c.drawText(
-                "Cost so far: " + formatCost(totalCost),
-                x + 14, ty, 0xFFFFFFFF, bodyFont
-        );
+        c.drawText("Cost so far: " + formatCost(totalCost), x + 14, ty, 0xFFFFFFFF, bodyFont);
         ty += lineH;
-        c.drawText(
-                "Est. total cost: " + formatCost(estimatedTotalCost),
-                x + 14, ty, 0xFFAA66FF, bodyFont
-        );
+        c.drawText("Est. total cost: " + formatCost(estimatedTotalCost), x + 14, ty, 0xFFAA66FF, bodyFont);
     }
 }
