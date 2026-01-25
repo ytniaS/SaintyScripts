@@ -563,7 +563,6 @@ public class ValeTotemsController {
             WorldPosition waypoint = new WorldPosition(1365, 3360, 0);
             if (!waypoint.equals(currentPos)) {
                 script.getWalker().walkTo((Position) waypoint);
-                script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(150, 800, 200, 200), false);
             }
         }
 
@@ -909,7 +908,6 @@ public class ValeTotemsController {
                 // Walk to a safe position first (north of problematic area, towards bank)
                 WorldPosition waypoint = new WorldPosition(1365, 3360, 0);
                 script.getWalker().walkTo((Position) waypoint);
-                script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(150, 800, 200, 200), false);
                 return false;
             }
             if (bankObject != null) {
@@ -2038,7 +2036,6 @@ public class ValeTotemsController {
                 // Walk to a safe position north of the problematic area
                 WorldPosition escapePos = new WorldPosition(1365, 3360, 0);
                 script.getWalker().walkTo((Position) escapePos);
-                script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(500, 2000, 400, 400), false);
                 lastStuckPosition = null;
                 lastPositionChangeTime = System.currentTimeMillis();
             }

@@ -336,6 +336,11 @@ public class PestControl extends Script {
             return false;
         }
 
+        WorldPosition me = getWorldPosition();
+        if (me != null && me.distanceTo(target) <= 2) {
+            return true;
+        }
+
         if (!COMBAT_AREA.contains(target)) {
             target = randomIn(VOID_KNIGHT_RECT);
         }
