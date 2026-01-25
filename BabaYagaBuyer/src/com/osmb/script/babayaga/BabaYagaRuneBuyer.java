@@ -22,7 +22,7 @@ import java.util.List;
 @ScriptDefinition(
         name = "BabaYaga Rune Buyer",
         author = "Sainty",
-        version = 1.3,
+        version = 2.0,
         description = "Buys runes from Baba Yaga using base stock logic",
         skillCategory = SkillCategory.OTHER
 )
@@ -381,7 +381,7 @@ public class BabaYagaRuneBuyer extends Script {
         int BORDER = new Color(100, 100, 110, 180).getRGB();
         int DIVIDER = new Color(255, 255, 255, 40).getRGB();
 
-        c.fillRect(x, y, w, headerH + bodyH, BG, 0.95);
+        c.fillRect(x, y, w, headerH + bodyH, BG, 1);
         c.drawRect(x, y, w, headerH + bodyH, BORDER);
 
         drawHeader(c, "Sainty", "Baba Yaga Rune Buyer", x + 14, y + 16);

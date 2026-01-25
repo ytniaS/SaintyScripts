@@ -4,6 +4,7 @@ import com.osmb.api.script.Script;
 import com.osmb.api.script.ScriptDefinition;
 import com.osmb.api.script.SkillCategory;
 import com.osmb.api.ui.component.tabs.SettingsTabComponent;
+import com.osmb.api.utils.RandomUtils;
 import com.osmb.api.visual.drawing.Canvas;
 import com.osmb.script.valetotemsfree.ui.SettingsUI;
 import com.sainty.common.Telemetry;
@@ -17,7 +18,7 @@ import java.util.Map;
 @ScriptDefinition(
         name = "Vale Totems Free",
         author = "Sainty",
-        version = 1.6,
+        version = 2.0,
         description = "Free Script for vale totems minigame.",
         skillCategory = SkillCategory.FLETCHING
 )
@@ -91,7 +92,7 @@ public class ValeTotemsFree
         if (zoom > 1) {
             if (getWidgetManager().getSettings().setZoomLevel(0)) {
                 log("ValeTotems", "Zoom set to 0");
-                sleep(random(400, 600));
+                sleep(RandomUtils.weightedRandom(400, 600, 0.0017));
             } else {
                 log("ValeTotems", "Failed to set zoom level");
             }

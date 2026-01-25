@@ -20,7 +20,6 @@ file(rootDir).eachDir { dir ->
 }
 
 include 'Obf'
-include 'BabaYagaBuyer:src:Telemetry'
 include 'winer'
 include 'ValeTotemsFree'
 include 'ValeTotemsFree:src:controller'

@@ -23,7 +23,7 @@ import java.util.Set;
 @ScriptDefinition(
         name = "Pack Buyer",
         author = "Sainty",
-        version = 1.3,
+        version = 2.0,
         description = "Buys and opens feather packs or broad arrowhead packs using base stock logic",
         skillCategory = SkillCategory.OTHER
 )
@@ -474,7 +474,7 @@ public class PackBuyer extends Script {
 
         Font bodyFont = new Font("Segoe UI", Font.PLAIN, 13);
 
-        c.fillRect(x, y, w, headerH + bodyH, BG, 0.95);
+        c.fillRect(x, y, w, headerH + bodyH, BG, 1);
         c.drawRect(x, y, w, headerH + bodyH, BORDER);
 
         drawHeader(c, "Sainty", "Pack Buyer", x + 14, y + 16);
