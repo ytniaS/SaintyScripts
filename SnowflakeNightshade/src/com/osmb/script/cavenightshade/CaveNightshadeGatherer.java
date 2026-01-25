@@ -33,14 +33,8 @@ public class CaveNightshadeGatherer extends Script {
 
     private static final int GATE_COOLDOWN = 2500;
     private static final int GATE_CROSS_TIMEOUT = 6000;
-    private static final int CAVE_ENTER_DELAY_MIN = 600;
-    private static final int CAVE_ENTER_DELAY_MAX = 900;
-    private static final int CAVE_EXIT_DELAY_MIN = 3000;
-    private static final int CAVE_EXIT_DELAY_MAX = 4000;
     private static final int PICKUP_TIMEOUT = 1200;
     private static final int BANK_OPEN_TIMEOUT = 4000;
-    private static final int ZOOM_SLEEP_MIN = 400;
-    private static final int ZOOM_SLEEP_MAX = 600;
     private static final int WALK_DISTANCE_THRESHOLD = 4;
     private static final int GATE_DISTANCE_THRESHOLD = 3;
     private static final int GATE_APPROACH_DISTANCE = 2;
@@ -229,7 +223,7 @@ public class CaveNightshadeGatherer extends Script {
                 log("CaveNightShade", "Zoom set to maximum (" + MAX_ZOOM + ")");
                 pollFramesHuman(
                         () -> true,
-                        RandomUtils.uniformRandom(ZOOM_SLEEP_MIN, ZOOM_SLEEP_MAX)
+                        RandomUtils.gaussianRandom(300, 1500, 350, 350)
                 );
             } else {
                 log("CaveNightShade", "Failed to set zoom level");
@@ -336,7 +330,7 @@ public class CaveNightshadeGatherer extends Script {
             enteringCave = true;
             pollFramesHuman(
                     () -> true,
-                    RandomUtils.uniformRandom(CAVE_ENTER_DELAY_MIN, CAVE_ENTER_DELAY_MAX)
+                    RandomUtils.gaussianRandom(500, 2000, 400, 400)
             );
         }
     }
@@ -355,7 +349,7 @@ public class CaveNightshadeGatherer extends Script {
         if (exit != null && exit.interact("Leave")) {
             pollFramesHuman(
                     () -> true,
-                    RandomUtils.uniformRandom(CAVE_EXIT_DELAY_MIN, CAVE_EXIT_DELAY_MAX)
+                    RandomUtils.gaussianRandom(2500, 5000, 625, 625)
             );
         }
     }

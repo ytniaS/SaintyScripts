@@ -39,10 +39,6 @@ public class Winer extends Script {
     private static final int REGION_ALDARIN = 5421;
 
     private static final long WALK_COOLDOWN_MS = 2500;
-    private static final int INTERACT_DELAY_MIN = 120;
-    private static final int INTERACT_DELAY_MAX = 200;
-    private static final int BANK_DELAY_MIN = 200;
-    private static final int BANK_DELAY_MAX = 400;
     private static final int BANK_OPEN_TIMEOUT_MIN = 1800;
     private static final int BANK_OPEN_TIMEOUT_MAX = 3200;
     private static final int SHOP_OPEN_TIMEOUT_MIN = 2000;
@@ -112,12 +108,12 @@ public class Winer extends Script {
         );
 
         if (mode == null) {
-            return RandomUtils.uniformRandom(200, 300);
+            return RandomUtils.gaussianRandom(200, 1200, 300, 300);
         }
 
         ItemGroupResult inv = getWidgetManager().getInventory().search(INVENTORY_IDS);
         if (inv == null) {
-            return RandomUtils.uniformRandom(120, 200);
+            return RandomUtils.gaussianRandom(150, 1000, 250, 250);
         }
 
         switch (mode) {
@@ -125,7 +121,7 @@ public class Winer extends Script {
             case MIX_WINES -> handleMixWines(inv);
         }
 
-        return RandomUtils.uniformRandom(140, 260);
+        return RandomUtils.gaussianRandom(200, 1200, 300, 300);
     }
 
     private void handleBuyWines(ItemGroupResult inv) {
@@ -206,7 +202,7 @@ public class Winer extends Script {
         }
 
         splinter.interact();
-        pollFramesHuman(() -> true, RandomUtils.uniformRandom(INTERACT_DELAY_MIN, INTERACT_DELAY_MAX));
+        pollFramesHuman(() -> true, RandomUtils.gaussianRandom(150, 1200, 300, 300));
         wine.interact();
 
         mixing = true;
@@ -221,7 +217,7 @@ public class Winer extends Script {
         depositIfPresent(SUNFIRE_WINE);
         depositIfPresent(EMPTY_JUG);
 
-        pollFramesHuman(() -> true, RandomUtils.uniformRandom(BANK_DELAY_MIN, BANK_DELAY_MAX));
+        pollFramesHuman(() -> true, RandomUtils.gaussianRandom(200, 1200, 300, 300));
         getWidgetManager().getBank().close();
     }
 
@@ -262,7 +258,7 @@ public class Winer extends Script {
 
         return pollFramesHuman(
                 () -> getWidgetManager().getBank().isVisible(),
-                RandomUtils.uniformRandom(BANK_OPEN_TIMEOUT_MIN, BANK_OPEN_TIMEOUT_MAX)
+                RandomUtils.gaussianRandom(BANK_OPEN_TIMEOUT_MIN, BANK_OPEN_TIMEOUT_MAX, 350, 350)
         );
     }
 
@@ -328,7 +324,7 @@ public class Winer extends Script {
 
         pollFramesHuman(
                 () -> wineShop != null && wineShop.isVisible(),
-                RandomUtils.uniformRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX)
+                RandomUtils.gaussianRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX, 375, 375)
         );
     }
 

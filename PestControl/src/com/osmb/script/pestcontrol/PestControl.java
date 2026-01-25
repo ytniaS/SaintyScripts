@@ -161,7 +161,7 @@ public class PestControl extends Script {
             if (!inGame) {
                 inGame = true;
                 instanceSettled = false;
-                instanceResolveUntil = System.currentTimeMillis() + RandomUtils.weightedRandom(4500, 6000, 0.0017);
+                instanceResolveUntil = System.currentTimeMillis() + RandomUtils.gaussianRandom(4500, 6000, 375, 375);
                 return 300;
             }
             if (!instanceSettled) {
@@ -178,7 +178,7 @@ public class PestControl extends Script {
             }
             handleLobby();
         }
-        return RandomUtils.weightedRandom(40, 80, 0.0017);
+        return RandomUtils.gaussianRandom(40, 80, 10, 10);
     }
 
     private int getTotalPoints() {
@@ -270,7 +270,7 @@ public class PestControl extends Script {
                 continue;
             }
 
-            pollFramesHuman(() -> true, RandomUtils.weightedRandom(20, 70, 0.0017));
+            pollFramesHuman(() -> true, RandomUtils.gaussianRandom(20, 70, 12, 12));
 
             if (getFinger().tapGameScreen(resized, "Attack")) {
                 attacking = true;
@@ -301,7 +301,7 @@ public class PestControl extends Script {
         boolean issued = getWalker().walkTo(target, cfg);
         if (issued) {
             lastWalkAt = now;
-            pollFramesHuman(() -> true, RandomUtils.weightedRandom(60, 200, 0.0017));
+            pollFramesHuman(() -> true, RandomUtils.gaussianRandom(60, 200, 35, 35));
         }
         return true;
     }
@@ -366,7 +366,7 @@ public class PestControl extends Script {
         boardingStart = lastBoardClick;
         inGame = true;
         instanceSettled = false;
-        instanceResolveUntil = System.currentTimeMillis() + RandomUtils.weightedRandom(4500, 6000, 0.0017);
+        instanceResolveUntil = System.currentTimeMillis() + RandomUtils.gaussianRandom(4500, 6000, 375, 375);
         recoveringToCombat = false;
         recoverTarget = null;
     }
@@ -404,7 +404,7 @@ public class PestControl extends Script {
         boolean issued = getWalker().walkTo(target, cfg);
         if (issued) {
             lastWalkAt = now;
-            pollFramesHuman(() -> true, RandomUtils.weightedRandom(60, 160, 0.0017));
+            pollFramesHuman(() -> true, RandomUtils.gaussianRandom(60, 160, 25, 25));
         }
         return true;
     }

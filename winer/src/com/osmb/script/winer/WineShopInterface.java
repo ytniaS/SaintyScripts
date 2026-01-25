@@ -22,8 +22,6 @@ public class WineShopInterface extends ComponentCentered implements ItemGroup {
     private static final Rectangle TITLE_BOUNDS = new Rectangle(117, 6, 476, 23);
     private static final Rectangle CLOSE_BUTTON = new Rectangle(460, 7, 21, 21);
     private static final int CLOSE_TIMEOUT = 3000;
-    private static final int AMOUNT_SELECT_TIMEOUT_MIN = 1600;
-    private static final int AMOUNT_SELECT_TIMEOUT_MAX = 3000;
     private static final int BUTTON_PADDING = 4;
 
     public WineShopInterface(ScriptCore core) {
@@ -149,7 +147,7 @@ public class WineShopInterface extends ComponentCentered implements ItemGroup {
                     return !now.isNotVisible()
                             && now.get() != null
                             && now.get() == amount;
-                }, RandomUtils.uniformRandom(AMOUNT_SELECT_TIMEOUT_MIN, AMOUNT_SELECT_TIMEOUT_MAX));
+                }, RandomUtils.gaussianRandom(1200, 4000, 700, 700));
             }
         }
 

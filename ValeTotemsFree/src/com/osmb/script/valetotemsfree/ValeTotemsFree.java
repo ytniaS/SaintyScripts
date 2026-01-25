@@ -92,7 +92,7 @@ public class ValeTotemsFree
         if (zoom > 1) {
             if (getWidgetManager().getSettings().setZoomLevel(0)) {
                 log("ValeTotems", "Zoom set to 0");
-                sleep(RandomUtils.weightedRandom(400, 600, 0.0017));
+                sleep(RandomUtils.gaussianRandom(300, 1500, 350, 350));
             } else {
                 log("ValeTotems", "Failed to set zoom level");
             }

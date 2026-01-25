@@ -255,7 +255,7 @@ public class BabaYagaRuneBuyer extends Script {
                 return;
             }
 
-            pollFramesHuman(() -> true, 800);
+            pollFramesHuman(() -> true, RandomUtils.gaussianRandom(400, 2000, 400, 400));
 
             boughtThisTick = true;
             break;
@@ -317,7 +317,7 @@ public class BabaYagaRuneBuyer extends Script {
             if (getFinger().tapGameScreen(resized, "Trade")) {
                 pollFramesHuman(
                         () -> shop.isVisible(),
-                        RandomUtils.weightedRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX, 0.002)
+                        RandomUtils.gaussianRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX, 750, 750)
                 );
                 return;
             }

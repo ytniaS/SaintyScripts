@@ -217,7 +217,7 @@ public class LibationBowl extends Script {
             log("LibationBowl", "Failed selecting Sunfire Splinter");
             return;
         }
-        pollFramesHuman(() -> true, RandomUtils.weightedRandom(120, 800, 0.0017));
+        pollFramesHuman(() -> true, RandomUtils.gaussianRandom(200, 1500, 350, 350));
         if (!wine.interact()) {
             log("LibationBowl", "Failed applying splinter to wine");
             return;
@@ -354,7 +354,7 @@ public class LibationBowl extends Script {
         }
         log("LibationBowl", "Restoring prayer...");
         shrine.interact("Bask");
-        pollFramesHuman(() -> true, RandomUtils.weightedRandom(700, 2000, 0.0017));
+        pollFramesHuman(() -> true, RandomUtils.gaussianRandom(500, 2500, 500, 500));
         // Wait until prayer is above threshold, or timeout
         pollFramesUntil(() -> {
             Integer pr = safePrayer();
@@ -480,7 +480,7 @@ public class LibationBowl extends Script {
             return;
         }
         // Wait human-like for the shop to appear
-        pollFramesHuman(() -> wineShop != null && wineShop.isVisible(), RandomUtils.weightedRandom(2500, 4500, 0.0017));
+        pollFramesHuman(() -> wineShop != null && wineShop.isVisible(), RandomUtils.gaussianRandom(2500, 4500, 500, 500));
     }
 
     private void handleWineShop() {
@@ -546,7 +546,7 @@ public class LibationBowl extends Script {
         getFinger().tap(resized, "Travel");
         triggerTravelCooldown();
         // Small delay, then click Aldarin on the Quetzal map
-        pollFramesHuman(() -> true, RandomUtils.weightedRandom(700, 2000, 0.0017));
+        pollFramesHuman(() -> true, RandomUtils.gaussianRandom(500, 2500, 500, 500));
         getFinger().tap(randomPointIn(ALDARIN_RECT));
         triggerTravelCooldown();
     }
@@ -577,7 +577,7 @@ public class LibationBowl extends Script {
         getFinger().tap(resized, "Travel");
         triggerTravelCooldown();
         // Small delay, then click Teomat on the Quetzal map
-        pollFramesHuman(() -> true, RandomUtils.weightedRandom(700, 2000, 0.0017));
+        pollFramesHuman(() -> true, RandomUtils.gaussianRandom(500, 2500, 500, 500));
         getFinger().tap(randomPointIn(TEOMAT_RECT));
         triggerTravelCooldown();
     }
@@ -630,7 +630,7 @@ public class LibationBowl extends Script {
 
         return pollFramesUntil(
                 () -> getWidgetManager().getBank().isVisible(),
-                RandomUtils.weightedRandom(BANK_OPEN_TIMEOUT_MIN, BANK_OPEN_TIMEOUT_MAX, 0.0017)
+                RandomUtils.gaussianRandom(BANK_OPEN_TIMEOUT_MIN, BANK_OPEN_TIMEOUT_MAX, 350, 350)
         );
     }
 
@@ -650,7 +650,7 @@ public class LibationBowl extends Script {
                 return r;
             }
             // Frame-based retry delay instead of sleep, sleep is bad to use on OSMB scripts
-            pollFramesHuman(() -> true, 120);
+            pollFramesHuman(() -> true, RandomUtils.gaussianRandom(100, 800, 200, 200));
         }
         return null;
     }

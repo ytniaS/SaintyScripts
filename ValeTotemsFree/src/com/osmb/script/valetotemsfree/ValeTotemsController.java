@@ -78,15 +78,6 @@ public class ValeTotemsController {
     private static final int FLETCH_COMPLETION_TIMEOUT = 30000; // Increased for larger amounts (e.g., 20 bows)
 
     private static final int WALK_COMPLETION_TIMEOUT = 20000;
-    private static final int DEPOSIT_DELAY = 700;
-    private static final int WALK_COMPLETION_DELAY = 600;
-    private static final int FLETCH_INTERACTION_DELAY = 150;
-    private static final int SPIRIT_DETECTION_DELAY = 80;
-    private static final int SPIRIT_SELECTION_DELAY_SHORT = 80;
-    private static final int SPIRIT_SELECTION_DELAY_MIN = 100;
-    private static final int SPIRIT_SELECTION_DELAY_MAX = 300;
-    private static final int HUMAN_DELAY = 45;
-    private static final int KNIFE_WITHDRAW_DELAY = 800;
 
 
     // Distance thresholds
@@ -270,7 +261,7 @@ public class ValeTotemsController {
             }
         }
 
-        script.pollFramesHuman(() -> true, HUMAN_DELAY, false);
+        script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(50, 400, 100, 100), false);
         currentTask = nextTask = getNextTask();
         if (currentTask != lastTask) {
             lastTask = currentTask;
@@ -514,7 +505,7 @@ public class ValeTotemsController {
 
         if (decorationComplete) {
             ++totemsCompleted;
-            script.pollFramesHuman(() -> true, 150, false);
+            script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(100, 600, 150, 150), false);
 
             // Claim offerings only during the offering collection phase (every X randomized loops)
             if (shouldCollectOfferings) {
@@ -572,7 +563,7 @@ public class ValeTotemsController {
             WorldPosition waypoint = new WorldPosition(1365, 3360, 0);
             if (!waypoint.equals(currentPos)) {
                 script.getWalker().walkTo((Position) waypoint);
-                script.pollFramesHuman(() -> true, 250, false);
+                script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(150, 800, 200, 200), false);
             }
         }
 
@@ -745,7 +736,7 @@ public class ValeTotemsController {
                     return targetArea.contains(script.getWorldPosition()) && (objAfter == null || !isInteractable(objAfter));
                 }, WALK_COMPLETION_TIMEOUT, false, false);
                 if (success) {
-                    script.pollFramesHuman(() -> true, WALK_COMPLETION_DELAY, false);
+                    script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(400, 1200, 250, 250), false);
                     return true;
                 }
             }
@@ -918,7 +909,7 @@ public class ValeTotemsController {
                 // Walk to a safe position first (north of problematic area, towards bank)
                 WorldPosition waypoint = new WorldPosition(1365, 3360, 0);
                 script.getWalker().walkTo((Position) waypoint);
-                script.pollFramesHuman(() -> true, 250, false);
+                script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(150, 800, 200, 200), false);
                 return false;
             }
             if (bankObject != null) {
@@ -983,7 +974,7 @@ public class ValeTotemsController {
             // Never deposit logs
         }
 
-        script.pollFramesHuman(() -> true, DEPOSIT_DELAY, false);
+        script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(400, 1500, 350, 350), false);
 
         // Knife sometimes accidentally deposited? Should prevent
         if (hadKnifeBefore && !hasKnife()) {
@@ -994,7 +985,7 @@ public class ValeTotemsController {
                 for (int knifeId : FLETCHING_KNIFE_IDS) {
                     if (knifeResult.getAmount(new int[]{knifeId}) > 0) {
                         script.getWidgetManager().getBank().withdraw(knifeId, KNIFE_WITHDRAW_COUNT);
-                        script.pollFramesHuman(() -> true, KNIFE_WITHDRAW_DELAY, false);
+                        script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(400, 1800, 400, 400), false);
                         break;
                     }
                 }
@@ -1020,7 +1011,7 @@ public class ValeTotemsController {
                     for (int basketId : LOG_BASKET_IDS) {
                         if (bankBasketSearch.getAmount(new int[]{basketId}) > 0) {
                             script.getWidgetManager().getBank().withdraw(basketId, 1);
-                            script.pollFramesHuman(() -> true, KNIFE_WITHDRAW_DELAY, false);
+                            script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(400, 1800, 400, 400), false);
                             break;
                         }
                     }
@@ -1045,7 +1036,7 @@ public class ValeTotemsController {
         for (int knifeId : FLETCHING_KNIFE_IDS) {
             if (knifeResult.getAmount(new int[]{knifeId}) > 0) {
                 script.getWidgetManager().getBank().withdraw(knifeId, KNIFE_WITHDRAW_COUNT);
-                script.pollFramesHuman(() -> true, KNIFE_WITHDRAW_DELAY, false);
+                script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(400, 1800, 400, 400), false);
                 return true;
             }
         }
@@ -1109,7 +1100,7 @@ public class ValeTotemsController {
         keep.addAll(FLETCHING_KNIFE_IDS);
         keep.addAll(LOG_BASKET_IDS);
         script.getWidgetManager().getBank().depositAll(keep);
-        script.pollFramesHuman(() -> true, DEPOSIT_DELAY, false);
+        script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(400, 1500, 350, 350), false);
     }
 
     private boolean handleAuburnvaleBanking(Area area, RSObject bankObject) {
@@ -1118,7 +1109,7 @@ public class ValeTotemsController {
                 return false;
             }
             basketRefilledThisLoop = true;
-            script.pollFramesHuman(() -> true, 50, false);
+            script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(50, 300, 80, 80), false);
         }
 
         int currentBows = getItemCount(selectedProductId);
@@ -1354,7 +1345,7 @@ public class ValeTotemsController {
     private boolean performFletching(int requiredBows) {
         if (script.getWidgetManager().getBank().isVisible()) {
             script.getWidgetManager().getBank().close();
-            script.pollFramesHuman(() -> true, 100, false);
+            script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(80, 500, 120, 120), false);
         }
 
         script.getWidgetManager().getInventory().open();
@@ -1375,7 +1366,7 @@ public class ValeTotemsController {
         }
 
         script.getFinger().tap((Shape) knifeItem.getBounds());
-        script.pollFramesHuman(() -> true, Math.min(FLETCH_INTERACTION_DELAY, 80), false);
+        script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(100, 600, 150, 150), false);
         script.getFinger().tap((Shape) logItem.getBounds());
 
         boolean dialogueAppeared = script.pollFramesUntil(() -> script.getWidgetManager().getDialogue().isVisible(), DIALOGUE_TIMEOUT, false, false);
@@ -1438,7 +1429,7 @@ public class ValeTotemsController {
 
         if (script.getWidgetManager().getBank().isVisible()) {
             script.getWidgetManager().getBank().close();
-            script.pollFramesHuman(() -> true, 200, false);
+            script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(150, 800, 200, 200), false);
         }
 
         int initialLogCount = getItemCount(selectedLogId);
@@ -1451,7 +1442,7 @@ public class ValeTotemsController {
                 reopenBankAfterBasketFill();
                 return true;
             }
-            script.pollFramesHuman(() -> true, 150 + RandomUtils.weightedRandom(0, 100, 0.0017), false);
+            script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(200, 1200, 300, 300), false);
             reopenBankAfterBasketFill();
             return logsTransferred || getItemCount(selectedLogId) < initialLogCount;
         }
@@ -1509,7 +1500,7 @@ public class ValeTotemsController {
                     logsBeforeBasketEmpty = -1;
                 }
                 script.getWidgetManager().getDialogue().continueChatDialogue();
-                script.pollFramesHuman(() -> true, 200, false);
+                script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(150, 800, 200, 200), false);
                 return false;
             }
             if (dialogueType == DialogueType.TEXT_OPTION) {
@@ -1571,7 +1562,7 @@ public class ValeTotemsController {
                 log("Human delay before selecting...");
                 spiritsReadyLogged = true;
             }
-            script.pollFramesHuman(() -> true, SPIRIT_SELECTION_DELAY_MIN + RandomUtils.weightedRandom(0, SPIRIT_SELECTION_DELAY_MAX - SPIRIT_SELECTION_DELAY_MIN, 0.0017), false);
+            script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(100, 800, 200, 200), false);
             for (String spirit : detectedSpirits) {
                 if (script.getWidgetManager().getDialogue().isVisible()) {
                     Integer optionIndexObj = SPIRIT_OPTION_MAP.get(spirit.toLowerCase());
@@ -1582,13 +1573,13 @@ public class ValeTotemsController {
                     if (script.getFinger().tap(true, (Shape) rectangle)) {
                         script.pollFramesUntil(() -> isSpiritOptionSelected(rectangle), 1500, false, false);
                     }
-                    script.pollFramesHuman(() -> true, SPIRIT_SELECTION_DELAY_SHORT, false);
+                    script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(80, 400, 100, 100), false);
                     continue;
                 }
                 break;
             }
         } else {
-            script.pollFramesHuman(() -> true, SPIRIT_DETECTION_DELAY, false);
+            script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(80, 400, 100, 100), false);
         }
     }
 
@@ -1726,7 +1717,7 @@ public class ValeTotemsController {
         // Close inventory if open so NPCs aren't hidden behind it
         if (script.getWidgetManager().getInventory() != null && script.getWidgetManager().getInventory().isVisible()) {
             script.getWidgetManager().getInventory().close();
-            script.pollFramesHuman(() -> true, 50, false);
+            script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(50, 300, 80, 80), false);
         }
 
         LinkedHashSet<String> detected = new LinkedHashSet<>();
@@ -2047,7 +2038,7 @@ public class ValeTotemsController {
                 // Walk to a safe position north of the problematic area
                 WorldPosition escapePos = new WorldPosition(1365, 3360, 0);
                 script.getWalker().walkTo((Position) escapePos);
-                script.pollFramesHuman(() -> true, 1000, false);
+                script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(500, 2000, 400, 400), false);
                 lastStuckPosition = null;
                 lastPositionChangeTime = System.currentTimeMillis();
             }
@@ -2085,7 +2076,7 @@ public class ValeTotemsController {
             DialogueType dialogueType = script.getWidgetManager().getDialogue().getDialogueType();
             if (dialogueType == DialogueType.TAP_HERE_TO_CONTINUE) {
                 script.getWidgetManager().getDialogue().continueChatDialogue();
-                script.pollFramesHuman(() -> true, 100, false);
+                script.pollFramesHuman(() -> true, RandomUtils.gaussianRandom(80, 500, 120, 120), false);
             }
         }
         goToClosestBank();

@@ -224,7 +224,7 @@ public class BoneBlesser extends Script {
         if (zoom > 1) {
             if (getWidgetManager().getSettings().setZoomLevel(0)) {
                 log("BoneBlesser", "Zoom set to maximum (1)");
-                pollFramesHuman(() -> true, RandomUtils.weightedRandom(400, 1200, 0.0017));
+                pollFramesHuman(() -> true, RandomUtils.gaussianRandom(300, 2000, 425, 425));
             } else {
                 log("BoneBlesser", "Failed to set zoom level");
             }
@@ -254,7 +254,7 @@ public class BoneBlesser extends Script {
         ItemGroupResult inv =
                 getWidgetManager().getInventory().search(INV_IDS);
         if (inv == null) {
-            return RandomUtils.weightedRandom(120, 1800, 0.0017);
+            return RandomUtils.gaussianRandom(120, 1800, 420, 420);
         }
         detectBoneType(inv);
         if (selectedBone == null) {
@@ -264,7 +264,7 @@ public class BoneBlesser extends Script {
                 // Avoid running indefinitely if the inventory never contains a valid bone type
                 stop();
             }
-            return RandomUtils.weightedRandom(250, 2000, 0.0017);
+            return RandomUtils.gaussianRandom(250, 2000, 437, 437);
         }
         ItemSearchResult noted =
                 getWidgetManager().getInventory()
@@ -327,12 +327,12 @@ public class BoneBlesser extends Script {
                         b.x + b.width / 2,
                         b.y + (int) (b.height * 0.58)
                 );
-                return RandomUtils.weightedRandom(300, 2000, 0.0017);
+                return RandomUtils.gaussianRandom(300, 2000, 425, 425);
             }
         }
         WorldPosition me = getWorldPosition();
         if (me == null) {
-            return RandomUtils.weightedRandom(120, 1800, 0.0017);
+            return RandomUtils.gaussianRandom(120, 1800, 420, 420);
         }
         boolean needChisel = chisel != null && blessed != null;
         boolean needBless = unblessed != null;
@@ -365,14 +365,14 @@ public class BoneBlesser extends Script {
                 }
             }
             if (target == null) {
-                return RandomUtils.weightedRandom(40, 600, 0.0017);
+                return RandomUtils.gaussianRandom(150, 1200, 300, 300);
             }
             if (!chisel.interact()) {
-                return RandomUtils.weightedRandom(60, 800, 0.0017);
+                return RandomUtils.gaussianRandom(200, 1500, 350, 350);
             }
-            pollFramesHuman(() -> true, RandomUtils.weightedRandom(40, 500, 0.0017));
+            pollFramesHuman(() -> true, RandomUtils.gaussianRandom(150, 1000, 250, 250));
             target.interact();
-            return RandomUtils.weightedRandom(80, 1200, 0.0017);
+            return RandomUtils.gaussianRandom(200, 1500, 350, 350);
         }
         if (needBless && now - lastBlessAt > BLESS_COOLDOWN_MS) {
             RSObject altar =
@@ -384,13 +384,13 @@ public class BoneBlesser extends Script {
                     if (getWidgetManager().insideGameScreen(poly, Collections.emptyList())) {
                         getFinger().tapGameScreen(poly, "Bless");
                         lastBlessAt = now;
-                        return RandomUtils.weightedRandom(120, 1800, 0.0017);
+                        return RandomUtils.gaussianRandom(120, 1800, 420, 420);
                     }
                 }
             }
             if (!inRect(me, ALTAR_AREA)) {
                 walkToRect(ALTAR_AREA);
-                return RandomUtils.weightedRandom(200, 2500, 0.0017);
+                return RandomUtils.gaussianRandom(200, 2500, 575, 575);
             }
         }
         if (needUnnote && now - lastUnnoteAt > UNNOTE_COOLDOWN_MS) {
@@ -411,16 +411,16 @@ public class BoneBlesser extends Script {
                     continue;
                 }
                 noted.interact();
-                pollFramesHuman(() -> true, RandomUtils.weightedRandom(10, 300, 0.0017));
+                pollFramesHuman(() -> true, RandomUtils.gaussianRandom(100, 800, 200, 200));
                 getFinger().tapGameScreen(cube);
                 lastUnnoteAt = now;
-                return RandomUtils.weightedRandom(600, 2500, 0.0017);
+                return RandomUtils.gaussianRandom(600, 2500, 475, 475);
             }
             if (!inRect(me, VIRILIS_AREA)) {
                 walkToRect(VIRILIS_RECT);
             }
         }
-        return RandomUtils.weightedRandom(200, 2500, 0.0017);
+        return RandomUtils.gaussianRandom(200, 2500, 575, 575);
     }
 
     private boolean inventoryContainsBone(BoneType t, ItemGroupResult inv) {

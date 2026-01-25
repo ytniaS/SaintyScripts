@@ -136,7 +136,7 @@ public class WineShopInterface extends ComponentCentered implements ItemGroup {
                     return !now.isNotVisible()
                             && now.get() != null
                             && now.get() == amount;
-                }, RandomUtils.weightedRandom(1600, 3000, 0.0017));
+                }, RandomUtils.gaussianRandom(1200, 4000, 700, 700));
             }
         }
         return false;

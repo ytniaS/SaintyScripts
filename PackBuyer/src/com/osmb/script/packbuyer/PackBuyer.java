@@ -279,7 +279,7 @@ public class PackBuyer extends Script {
             return;
         }
 
-        pollFramesHuman(() -> true, 800);
+        pollFramesHuman(() -> true, RandomUtils.gaussianRandom(400, 2000, 400, 400));
 
         closeShop();
 
@@ -382,7 +382,7 @@ public class PackBuyer extends Script {
                 log("Attempted to open shop");
                 pollFramesHuman(
                         () -> shop.isVisible(),
-                        RandomUtils.weightedRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX, 0.002)
+                        RandomUtils.gaussianRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX, 750, 750)
                 );
                 return;
             }
