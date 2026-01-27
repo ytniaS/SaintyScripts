@@ -64,7 +64,9 @@ public class LibationBowl extends Script {
     private static final Rectangle TEOMAT_RECT = new Rectangle(284, 375, 19, 20);
 
     private static final int MIN_PRAYER_POINTS = 2;
-
+    private boolean shopPurchasing = false;
+    private long shopPurchaseStarted = 0;
+    private static final long SHOP_PURCHASE_TIMEOUT_MS = 5000;
     private static final long TRAVEL_COOLDOWN_MS = 4500;
     private static final long WALK_COOLDOWN_MS = 3000;
     private static final int BANK_OPEN_TIMEOUT_MIN = 1800;
@@ -484,40 +486,55 @@ public class LibationBowl extends Script {
     }
 
     private void handleWineShop() {
-        while (true) {
-            ItemGroupResult inv = getWidgetManager().getInventory().search(INVENTORY_IDS);
-            if (inv == null || inv.getFreeSlots() == 0) {
-                break;
-            }
-            ItemGroupResult shop = wineShop.search(SHOP_WINE_IDS);
-            if (shop == null) {
-                break;
-            }
-            ItemSearchResult wineItem = shop.getItem(JUG_OF_WINE);
-            if (wineItem == null || wineItem.getStackAmount() <= 0) {
-                break;
-            }
-            // Always buy 10 at a time - doesn't let you do 50
-            wineShop.setSelectedAmount(10);
-            int freeBefore = inv.getFreeSlots();
-            int wineBefore = inv.getAmount(JUG_OF_WINE);
-            if (!wineItem.interact()) {
-                log("LibationBowl", "Failed to interact with wine — retrying.");
+        if (shopPurchasing) {
+            if (System.currentTimeMillis() - shopPurchaseStarted > SHOP_PURCHASE_TIMEOUT_MS) {
+                log("LibationBowl", "Purchase timeout - resetting");
+                shopPurchasing = false;
                 return;
             }
-            boolean success = pollFramesUntil(() -> {
-                ItemGroupResult after = getWidgetManager().getInventory().search(INVENTORY_IDS);
-                if (after == null) {
-                    return false;
+
+            ItemGroupResult inv = getWidgetManager().getInventory().search(INVENTORY_IDS);
+            if (inv != null) {
+                ItemGroupResult shop = wineShop.search(SHOP_WINE_IDS);
+                if (shop != null) {
+                    ItemSearchResult wineItem = shop.getItem(JUG_OF_WINE);
+                    if (wineItem != null) {
+                        shopPurchasing = false;
+                        log("LibationBowl", "Wine purchased");
+                    }
                 }
-                return after.getFreeSlots() < freeBefore ||
-                        after.getAmount(JUG_OF_WINE) > wineBefore;
-            }, 5000);
-            if (!success) {
-                continue;
             }
+            return;
         }
-        wineShop.close();
+        ItemGroupResult inv = getWidgetManager().getInventory().search(INVENTORY_IDS);
+        if (inv == null || inv.getFreeSlots() == 0) {
+            log("LibationBowl", "Inventory full - closing shop");
+            wineShop.close();
+            return;
+        }
+
+        ItemGroupResult shop = wineShop.search(SHOP_WINE_IDS);
+        if (shop == null) {
+            log("LibationBowl", "Shop not visible - closing");
+            wineShop.close();
+            return;
+        }
+
+        ItemSearchResult wineItem = shop.getItem(JUG_OF_WINE);
+        if (wineItem == null || wineItem.getStackAmount() <= 0) {
+            log("LibationBowl", "No wine in stock - closing shop");
+            wineShop.close();
+            return;
+        }
+
+        wineShop.setSelectedAmount(10);
+        if (wineItem.interact()) {
+            log("LibationBowl", "Purchasing wine...");
+            shopPurchasing = true;
+            shopPurchaseStarted = System.currentTimeMillis();
+        } else {
+            log("LibationBowl", "Failed to click wine");
+        }
     }
 
     private void travelToAldarin() {
@@ -602,9 +619,9 @@ public class LibationBowl extends Script {
         List<RSObject> banks = getObjectManager().getObjects(obj ->
                 obj != null && (
                         "Bank booth".equals(obj.getName()) ||
-                        "Bank chest".equals(obj.getName()) ||
-                        "Closed booth".equals(obj.getName()) ||
-                        "Bank table".equals(obj.getName())
+                                "Bank chest".equals(obj.getName()) ||
+                                "Closed booth".equals(obj.getName()) ||
+                                "Bank table".equals(obj.getName())
                 )
         );
 

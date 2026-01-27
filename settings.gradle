@@ -22,5 +22,4 @@ file(rootDir).eachDir { dir ->
 include 'Obf'
 include 'winer'
 include 'ValeTotemsFree'
-include 'ValeTotemsFree:src:controller'
-include 'ValeTotemsFree'
+include 'oneclick50fmv2'
