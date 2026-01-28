@@ -27,7 +27,7 @@ public class ScriptOptions extends VBox {
         sunfireBox.setStyle("-fx-font-size: 14px; -fx-text-fill: white;");
         sunfireBox.setSelected(loadSunfirePref());
 
-        bankedWineBox = new CheckBox("Use Banked Wines/Sunfire Wines");
+        bankedWineBox = new CheckBox("Use Banked Wines/Sunfire Wines if sunfire enabled");
         bankedWineBox.setStyle("-fx-font-size: 14px; -fx-text-fill: white;");
         bankedWineBox.setSelected(loadBankedWinePref());
 
