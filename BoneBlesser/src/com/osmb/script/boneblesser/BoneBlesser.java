@@ -27,7 +27,7 @@ import java.util.List;
 @ScriptDefinition(
         name = "Bone Blesser",
         author = "Sainty",
-        version = 4.0,
+        version = 4.1,
         description = "Unnotes, blesses and chisels bones.",
         skillCategory = SkillCategory.PRAYER
 )
@@ -225,6 +225,10 @@ public class BoneBlesser extends Script {
     }
 
     private void detectBoneType(ItemGroupResult inv) {
+        if (inv == null) {
+            // Inventory search failed - don't reset bone type on temporary failures
+            return;
+        }
 
         //if we have bones, check it exists
         if (selectedBone != null) {
@@ -232,10 +236,14 @@ public class BoneBlesser extends Script {
                 return;
             }
             // Bone type disappeared then reset
-            log("BoneBlesser", "Bone type changed — re-detecting");
-            selectedBone = null;
-            lastNotedCount = -1;
-            lastShardCount = -1;
+            if (!recentlyMoved()) {
+                log("BoneBlesser", "Bone type changed — re-detecting");
+                selectedBone = null;
+                lastNotedCount = -1;
+                lastShardCount = -1;
+            } else {
+                return;
+            }
         }
 
         for (BoneType t : BoneType.values()) {
@@ -623,11 +631,27 @@ public class BoneBlesser extends Script {
 
         // Click NPC with menu verification
         if (getFinger().tapGameScreen(resized, menuHook)) {
-            // Wait for dialogue to appear
+            // Wait for dialogue to appear - give more time if player is moving
+            // Also check if we're still near the NPC (might need to walk closer)
+            int dialogueTimeout = recentlyMoved()
+                    ? (int) RandomUtils.gaussianRandom(8000, 12000, 10000, 1000)  // More time if moving (8-12s)
+                    : (int) RandomUtils.gaussianRandom(7000, 10000, 8500, 750); // Normal time if stationary (7-10s)
+
             boolean dialogueAppeared = pollFramesUntil(() -> {
                 Dialogue dialogue = getWidgetManager().getDialogue();
                 return dialogue != null && dialogue.isVisible();
-            }, RandomUtils.gaussianRandom(1000, 2000, 500, 500));
+            }, dialogueTimeout);
+
+            // If dialogue didn't appear, check if we moved too far from NPC
+            if (!dialogueAppeared) {
+                WorldPosition me = getWorldPosition();
+                if (me != null && currentNPCPos != null) {
+                    double distance = me.distanceTo(currentNPCPos);
+                    if (distance > MAX_NPC_DISTANCE + 2) {
+                        log("BoneBlesser", "Moved too far from NPC (" + String.format("%.1f", distance) + " tiles) - dialogue won't appear");
+                    }
+                }
+            }
 
             if (dialogueAppeared) {
                 // Handle "Exchange all" dialogue option
