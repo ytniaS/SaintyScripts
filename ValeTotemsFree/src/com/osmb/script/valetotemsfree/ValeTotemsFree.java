@@ -18,7 +18,7 @@ import java.util.Map;
 @ScriptDefinition(
         name = "Vale Totems Free",
         author = "Sainty",
-        version = 2.1,
+        version = 3.0,
         description = "Free Script for vale totems minigame.",
         skillCategory = SkillCategory.FLETCHING
 )
@@ -92,7 +92,10 @@ public class ValeTotemsFree
         if (zoom > 1) {
             if (getWidgetManager().getSettings().setZoomLevel(0)) {
                 log("ValeTotems", "Zoom set to 0");
-                sleep(RandomUtils.gaussianRandom(300, 1500, 350, 350));
+                pollFramesHuman(
+                        () -> true,
+                        RandomUtils.gaussianRandom(300, 1500, 350, 350)
+                );
             } else {
                 log("ValeTotems", "Failed to set zoom level");
             }

@@ -23,7 +23,7 @@ import java.util.Set;
 @ScriptDefinition(
         name = "Pack Buyer",
         author = "Sainty",
-        version = 2.0,
+        version = 2.1,
         description = "Buys and opens feather packs or broad arrowhead packs using base stock logic",
         skillCategory = SkillCategory.OTHER
 )
@@ -38,11 +38,6 @@ public class PackBuyer extends Script {
     private static final int MARK_OF_GRACE = 11849;
     private static final String SCRIPT_NAME = "PackBuyer";
     private static final Font PAINT_FONT = new Font("Arial", Font.PLAIN, 13);
-
-    private static final int SHOP_OPEN_TIMEOUT_MIN = 3000;
-    private static final int SHOP_OPEN_TIMEOUT_MAX = 6000;
-    private static final int PURCHASE_TIMEOUT = 3500;
-    private static final int OPEN_PACK_TIMEOUT = 3500;
     private static final int MAX_NPC_DISTANCE = 6;
     private static final double TILE_CUBE_RESIZE = 0.6;
 
@@ -120,6 +115,14 @@ public class PackBuyer extends Script {
 
     public PackBuyer(Object core) {
         super(core);
+    }
+
+    private int getShopOpenTimeout() {
+        return RandomUtils.gaussianRandom(
+                RandomUtils.uniformRandom(2500, 3500),
+                RandomUtils.uniformRandom(5500, 6500),
+                750, 750
+        );
     }
 
     @Override
@@ -323,7 +326,7 @@ public class PackBuyer extends Script {
 
         if (pollFramesUntil(
                 () -> getInventoryAmount(config.openedItemId) > before,
-                OPEN_PACK_TIMEOUT
+                RandomUtils.uniformRandom(3000, 4000)
         )) {
             int after = getInventoryAmount(config.openedItemId);
             packsOpened++;
@@ -382,7 +385,7 @@ public class PackBuyer extends Script {
                 log("Attempted to open shop");
                 pollFramesHuman(
                         () -> shop.isVisible(),
-                        RandomUtils.gaussianRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX, 750, 750)
+                        getShopOpenTimeout()
                 );
                 return;
             }

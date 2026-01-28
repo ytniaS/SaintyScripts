@@ -22,7 +22,7 @@ import java.util.Set;
 @ScriptDefinition(
         name = "Winer",
         author = "Sainty",
-        version = 2.0,
+        version = 3.0,
         description = "Buys wines or mixes them with Sunfire splinters.",
         skillCategory = SkillCategory.OTHER
 )
@@ -37,12 +37,6 @@ public class Winer extends Script {
     private static final int PESTLE_AND_MORTAR = 233;
     private static final int SUNFIRE_WINE = 29382;
     private static final int REGION_ALDARIN = 5421;
-
-    private static final long WALK_COOLDOWN_MS = 2500;
-    private static final int BANK_OPEN_TIMEOUT_MIN = 1800;
-    private static final int BANK_OPEN_TIMEOUT_MAX = 3200;
-    private static final int SHOP_OPEN_TIMEOUT_MIN = 2000;
-    private static final int SHOP_OPEN_TIMEOUT_MAX = 3500;
     private static final double BARTENDER_RESIZE = 0.5;
 
     private static final Rectangle BARTENDER_AREA = new Rectangle(1378, 2925, 3, 3);
@@ -56,9 +50,36 @@ public class Winer extends Script {
     private long walkCooldownUntil = 0;
 
     private boolean mixing = false;
+    private long mixingStartedAt = 0;
+    private int wineCountWhenMixingStarted = -1;
+    private long lastWineCountCheck = 0;
+
+    private long getWineCountCheckInterval() {
+        return RandomUtils.gaussianRandom(10_000, 15_000, 12_500, 1_250);
+    }
 
     public Winer(Object core) {
         super(core);
+    }
+
+    private long getWalkCooldown() {
+        return RandomUtils.uniformRandom(2000, 3000);
+    }
+
+    private int getBankOpenTimeout() {
+        return RandomUtils.gaussianRandom(
+                RandomUtils.uniformRandom(1500, 2000),
+                RandomUtils.uniformRandom(3000, 3500),
+                350, 350
+        );
+    }
+
+    private int getShopOpenTimeout() {
+        return RandomUtils.gaussianRandom(
+                RandomUtils.uniformRandom(1800, 2200),
+                RandomUtils.uniformRandom(3200, 3800),
+                350, 350
+        );
     }
 
     @Override
@@ -163,16 +184,63 @@ public class Winer extends Script {
 
     private void handleMixWines(ItemGroupResult inv) {
         if (mixing) {
-            if (!inv.contains(JUG_OF_WINE)) {
+            long now = System.currentTimeMillis();
+            int currentWineCount = inv.getAmount(JUG_OF_WINE);
+            int currentSplinterCount = inv.getAmount(SUNFIRE_SPLINTER);
+
+            // Finished: no more regular wine to convert
+            if (currentWineCount == 0) {
                 mixing = false;
-                log("Winer", "Finished Sunfire wine batch");
+                mixingStartedAt = 0;
+                wineCountWhenMixingStarted = -1;
+                lastWineCountCheck = 0;
+                log("Winer", "Finished Sunfire wine batch - out of regular wine");
+                // fall through to banking / restart logic below
             }
-            return;
+            // Not enough splinters left to perform at least one more mix
+            else if (currentSplinterCount < 2) {
+                log("Winer", "Only " + currentSplinterCount + " splinter(s) left while mixing - resetting state to rebank");
+                mixing = false;
+                mixingStartedAt = 0;
+                wineCountWhenMixingStarted = -1;
+                lastWineCountCheck = 0;
+                // fall through to banking / restart logic below
+            }
+            // Check if wine count has changed (mixing is progressing)
+            else if (wineCountWhenMixingStarted >= 0) {
+                // Check if enough time has passed to verify progress
+                if (now - lastWineCountCheck >= getWineCountCheckInterval()) {
+                    if (currentWineCount >= wineCountWhenMixingStarted) {
+                        // Wine count hasn't decreased - mixing may have stalled, retry
+                        log("Winer", "Wine count hasn't decreased (" + currentWineCount + " >= " + wineCountWhenMixingStarted + ") - retrying mixing");
+                        mixing = false;
+                        mixingStartedAt = 0;
+                        wineCountWhenMixingStarted = -1;
+                        lastWineCountCheck = 0;
+                        // fall through to banking / restart logic below
+                    } else {
+                        // Wine count decreased - mixing is progressing
+                        wineCountWhenMixingStarted = currentWineCount;
+                        lastWineCountCheck = now;
+                        return;
+                    }
+                } else {
+                    // Not yet time to re-check progress
+                    return;
+                }
+            } else {
+                // Initialize tracking if not set
+                wineCountWhenMixingStarted = currentWineCount;
+                lastWineCountCheck = now;
+                return;
+            }
         }
 
+        // Ensure we have enough materials BEFORE attempting another batch.
+        int splinters = inv.getAmount(SUNFIRE_SPLINTER);
         if (!inv.contains(JUG_OF_WINE)
-                || !inv.contains(SUNFIRE_SPLINTER)
-                || !inv.contains(PESTLE_AND_MORTAR)) {
+                || !inv.contains(PESTLE_AND_MORTAR)
+                || splinters < 2) {
 
             if (ensureBankOpen()) {
                 depositMixOutputs();
@@ -206,6 +274,9 @@ public class Winer extends Script {
         wine.interact();
 
         mixing = true;
+        mixingStartedAt = System.currentTimeMillis();
+        wineCountWhenMixingStarted = inv.getAmount(JUG_OF_WINE);
+        lastWineCountCheck = System.currentTimeMillis();
     }
 
     private void bankAll() {
@@ -258,7 +329,7 @@ public class Winer extends Script {
 
         return pollFramesHuman(
                 () -> getWidgetManager().getBank().isVisible(),
-                RandomUtils.gaussianRandom(BANK_OPEN_TIMEOUT_MIN, BANK_OPEN_TIMEOUT_MAX, 350, 350)
+                getBankOpenTimeout()
         );
     }
 
@@ -290,9 +361,36 @@ public class Winer extends Script {
     }
 
     private void withdrawMixMaterials() {
-        getWidgetManager().getBank().withdraw(SUNFIRE_SPLINTER, 27);
+        // Ensure we have at least 2 splinters total (bank + inventory) before attempting to mix
+        ItemGroupResult invSplinters = getWidgetManager().getInventory().search(Set.of(SUNFIRE_SPLINTER));
+        int invSplinterCount = invSplinters == null ? 0 : invSplinters.getAmount(SUNFIRE_SPLINTER);
+
+        ItemGroupResult bankSplinters = getWidgetManager().getBank().search(Set.of(SUNFIRE_SPLINTER));
+        int bankSplinterCount = bankSplinters == null ? 0 : bankSplinters.getAmount(SUNFIRE_SPLINTER);
+
+        int totalSplinters = invSplinterCount + bankSplinterCount;
+        if (totalSplinters < 2) {
+            log("Winer", "Not enough Sunfire splinters to continue mixing (total=" + totalSplinters + ") — stopping");
+            stop();
+            return;
+        }
+
+        // Target up to 54 splinters in inventory (2 per wine for 27 wines), but never more than total available
+        int targetSplintersInInv = Math.min(54, totalSplinters);
+        int needSplinters = Math.max(0, targetSplintersInInv - invSplinterCount);
+        if (needSplinters > 0 && bankSplinterCount > 0) {
+            getWidgetManager().getBank().withdraw(SUNFIRE_SPLINTER, Math.min(needSplinters, bankSplinterCount));
+        }
+
+        // Always ensure we have a pestle and mortar
         getWidgetManager().getBank().withdraw(PESTLE_AND_MORTAR, 1);
-        getWidgetManager().getBank().withdraw(JUG_OF_WINE, 27);
+
+        // Withdraw up to 27 wines (or as many as available)
+        ItemGroupResult bankWines = getWidgetManager().getBank().search(Set.of(JUG_OF_WINE));
+        int bankWineCount = bankWines == null ? 0 : bankWines.getAmount(JUG_OF_WINE);
+        if (bankWineCount > 0) {
+            getWidgetManager().getBank().withdraw(JUG_OF_WINE, Math.min(27, bankWineCount));
+        }
     }
 
     private void openWineShop() {
@@ -320,11 +418,11 @@ public class Winer extends Script {
             return;
         }
 
-        getFinger().tap(resized, "Trade");
+        getFinger().tapGameScreen(resized, "Trade");
 
         pollFramesHuman(
                 () -> wineShop != null && wineShop.isVisible(),
-                RandomUtils.gaussianRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX, 375, 375)
+                getShopOpenTimeout()
         );
     }
 
@@ -348,7 +446,7 @@ public class Winer extends Script {
                         .build()
         );
 
-        walkCooldownUntil = System.currentTimeMillis() + WALK_COOLDOWN_MS;
+        walkCooldownUntil = System.currentTimeMillis() + getWalkCooldown();
     }
 
 

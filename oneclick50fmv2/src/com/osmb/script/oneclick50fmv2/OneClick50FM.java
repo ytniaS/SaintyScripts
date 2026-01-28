@@ -25,7 +25,7 @@ import java.util.List;
 @ScriptDefinition(
         name = "OneClick 50 FM V2",
         description = "Oneclick 1-50 Firemaking at Castle Wars",
-        version = 1.0,
+        version = 2.0,
         author = "Sainty",
         skillCategory = SkillCategory.FIREMAKING
 )

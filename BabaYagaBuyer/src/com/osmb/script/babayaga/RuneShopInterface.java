@@ -6,6 +6,7 @@ import com.osmb.api.shape.Rectangle;
 import com.osmb.api.ui.SpriteID;
 import com.osmb.api.ui.component.ComponentCentered;
 import com.osmb.api.ui.component.ComponentImage;
+import com.osmb.api.utils.RandomUtils;
 import com.osmb.api.utils.UIResult;
 import com.osmb.api.visual.color.ColorModel;
 import com.osmb.api.visual.color.ColorUtils;
@@ -23,9 +24,6 @@ public class RuneShopInterface extends ComponentCentered implements ItemGroup {
     private static final Rectangle TITLE_BOUNDS = new Rectangle(6, 6, 476, 23);
     private static final Rectangle CLOSE_BUTTON = new Rectangle(460, 7, 21, 21);
 
-
-    private static final int CLOSE_TIMEOUT = 2000;
-    private static final int AMOUNT_SELECT_TIMEOUT = 1500;
     private static final int BUTTON_PADDING = 3;
 
     private static final String SHOP_NAME_PART1 = "baba yaga";
@@ -78,7 +76,7 @@ public class RuneShopInterface extends ComponentCentered implements ItemGroup {
         }
 
         core.getFinger().tap(b.getSubRectangle(CLOSE_BUTTON));
-        pollFramesUntil(() -> !isVisible(), CLOSE_TIMEOUT);
+        pollFramesUntil(() -> !isVisible(), RandomUtils.uniformRandom(1800, 2200));
     }
 
 
@@ -157,7 +155,7 @@ public class RuneShopInterface extends ComponentCentered implements ItemGroup {
                 return pollFramesUntil(() -> {
                     UIResult<Integer> now = getSelectedAmount();
                     return !now.isNotVisible() && now.get() != null && now.get() == amount;
-                }, AMOUNT_SELECT_TIMEOUT);
+                }, RandomUtils.uniformRandom(1300, 1700));
             }
         }
 

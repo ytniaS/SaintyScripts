@@ -21,7 +21,7 @@ import java.util.Set;
 @ScriptDefinition(
         name = "Cave Nightshade Gatherer",
         author = "Sainty",
-        version = 2.0,
+        version = 3.0,
         description = "Gathers Cave Nightshade and banks it for snowflakes.",
         skillCategory = SkillCategory.OTHER
 )
@@ -30,11 +30,6 @@ public class CaveNightshadeGatherer extends Script {
     private static final int CAVE_REGION = 10131;
     private static final int[] PRIORITY_REGIONS = {9776, 10032, 10131, 10031};
     private static final String SCRIPT_NAME = "CaveNightshade";
-
-    private static final int GATE_COOLDOWN = 2500;
-    private static final int GATE_CROSS_TIMEOUT = 6000;
-    private static final int PICKUP_TIMEOUT = 1200;
-    private static final int BANK_OPEN_TIMEOUT = 4000;
     private static final int WALK_DISTANCE_THRESHOLD = 4;
     private static final int GATE_DISTANCE_THRESHOLD = 3;
     private static final int GATE_APPROACH_DISTANCE = 2;
@@ -59,6 +54,20 @@ public class CaveNightshadeGatherer extends Script {
         LEAVE_CAVE,
         CROSS_GATE,
         BANK
+    }
+
+    private static class CaveNightshadeContext {
+        final ItemGroupResult inv;
+        final WorldPosition position;
+        final boolean headingToBank;
+        final long now;
+
+        CaveNightshadeContext(ItemGroupResult inv, WorldPosition position, boolean headingToBank, long now) {
+            this.inv = inv;
+            this.position = position;
+            this.headingToBank = headingToBank;
+            this.now = now;
+        }
     }
 
     private State state = State.ENTER_CAVE;
@@ -103,6 +112,25 @@ public class CaveNightshadeGatherer extends Script {
     }
 
     public int poll() {
+        handleHousekeeping();
+
+        CaveNightshadeContext ctx = collectContext();
+        if (ctx == null) {
+            return 0;
+        }
+
+        headingToBank = ctx.headingToBank;
+        state = decideState(ctx);
+
+        if (hopFlag) {
+            getProfileManager().forceHop();
+            return 0;
+        }
+
+        return executeState(ctx);
+    }
+
+    private void handleHousekeeping() {
         Integer world = getCurrentWorld();
         if (world != null && !world.equals(lastWorld)) {
             hopFlag = false;
@@ -115,44 +143,48 @@ public class CaveNightshadeGatherer extends Script {
                 getTotalNightshadeCollected(),
                 "nightshade_collected"
         );
+    }
 
+    private CaveNightshadeContext collectContext() {
         ItemGroupResult inv = getWidgetManager().getInventory().search(Set.of(CAVE_NIGHTSHADE));
         if (inv == null) {
-            return 0;
+            return null;
         }
 
         WorldPosition me = getWorldPosition();
         if (me == null) {
-            return 0;
+            return null;
         }
 
-        headingToBank = inv.getFreeSlots() == 0;
+        boolean headingToBank = inv.getFreeSlots() == 0;
+        long now = System.currentTimeMillis();
 
-        if (headingToBank) {
+        return new CaveNightshadeContext(inv, me, headingToBank, now);
+    }
+
+    private State decideState(CaveNightshadeContext ctx) {
+        if (ctx.headingToBank) {
             if (inCave()) {
-                state = State.LEAVE_CAVE;
-            } else if (isNorthSide(me)) {
-                state = State.BANK;
+                return State.LEAVE_CAVE;
+            } else if (isNorthSide(ctx.position)) {
+                return State.BANK;
             } else {
-                state = State.CROSS_GATE;
+                return State.CROSS_GATE;
             }
         } else {
             if (inCave()) {
-                state = State.PICKUP;
+                return State.PICKUP;
             } else if (enteringCave) {
-                state = State.ENTER_CAVE;
-            } else if (isSouthSide(me)) {
-                state = State.ENTER_CAVE;
+                return State.ENTER_CAVE;
+            } else if (isSouthSide(ctx.position)) {
+                return State.ENTER_CAVE;
             } else {
-                state = State.CROSS_GATE;
+                return State.CROSS_GATE;
             }
         }
+    }
 
-        if (hopFlag) {
-            getProfileManager().forceHop();
-            return 0;
-        }
-
+    private int executeState(CaveNightshadeContext ctx) {
         switch (state) {
             case ENTER_CAVE:
                 enterCave();
@@ -167,10 +199,9 @@ public class CaveNightshadeGatherer extends Script {
                 crossGate();
                 break;
             case BANK:
-                handleBanking(inv);
+                handleBanking(ctx.inv);
                 break;
         }
-
         return 0;
     }
 
@@ -250,11 +281,11 @@ public class CaveNightshadeGatherer extends Script {
                 RSObject gate = getObjectManager().getClosestObject(me, "City gate");
                 if (gate != null && gate.interact("Open")) {
                     gateLocked = true;
-                    gateLockUntil = System.currentTimeMillis() + GATE_COOLDOWN;
+                    gateLockUntil = System.currentTimeMillis() + RandomUtils.uniformRandom(2000, 3500);
                     pollFramesUntil(() -> {
                         WorldPosition pos = getWorldPosition();
                         return pos != null && isNorthSide(pos);
-                    }, 6000);
+                    }, RandomUtils.uniformRandom(5000, 7000));
                 }
                 return;
             }
@@ -265,11 +296,11 @@ public class CaveNightshadeGatherer extends Script {
             RSObject gate = getObjectManager().getClosestObject(me, "City gate");
             if (gate != null && gate.interact("Open")) {
                 gateLocked = true;
-                gateLockUntil = System.currentTimeMillis() + GATE_COOLDOWN;
+                gateLockUntil = System.currentTimeMillis() + RandomUtils.uniformRandom(2000, 3500);
                 pollFramesUntil(() -> {
                     WorldPosition pos = getWorldPosition();
                     return pos != null && isNorthSide(pos);
-                }, 6000);
+                }, RandomUtils.uniformRandom(5000, 7000));
             }
             return;
         }
@@ -279,11 +310,11 @@ public class CaveNightshadeGatherer extends Script {
                 RSObject gate = getObjectManager().getClosestObject(me, "City gate");
                 if (gate != null && gate.interact("Open")) {
                     gateLocked = true;
-                    gateLockUntil = System.currentTimeMillis() + GATE_COOLDOWN;
+                    gateLockUntil = System.currentTimeMillis() + RandomUtils.uniformRandom(2000, 3500);
                     pollFramesUntil(() -> {
                         WorldPosition pos = getWorldPosition();
                         return pos != null && isSouthSide(pos);
-                    }, 6000);
+                    }, RandomUtils.uniformRandom(5000, 7000));
                 }
                 return;
             }
@@ -294,11 +325,11 @@ public class CaveNightshadeGatherer extends Script {
             RSObject gate = getObjectManager().getClosestObject(me, "City gate");
             if (gate != null && gate.interact("Open")) {
                 gateLocked = true;
-                gateLockUntil = System.currentTimeMillis() + GATE_COOLDOWN;
+                gateLockUntil = System.currentTimeMillis() + RandomUtils.uniformRandom(2000, 3500);
                 pollFramesUntil(() -> {
                     WorldPosition pos = getWorldPosition();
                     return pos != null && isSouthSide(pos);
-                }, 6000);
+                }, RandomUtils.uniformRandom(5000, 7000));
             }
             return;
         }
@@ -392,7 +423,7 @@ public class CaveNightshadeGatherer extends Script {
             ItemGroupResult after = getWidgetManager().getInventory().search(Set.of(CAVE_NIGHTSHADE));
             int now = after == null ? 0 : after.getAmount(CAVE_NIGHTSHADE);
             return now > before;
-        }, PICKUP_TIMEOUT);
+        }, RandomUtils.uniformRandom(1000, 1500));
 
         if (success) {
             totalCollected++;
@@ -420,11 +451,11 @@ public class CaveNightshadeGatherer extends Script {
             return;
         }
 
-        getFinger().tap(bankPoly, "Bank");
+        getFinger().tapGameScreen(bankPoly, "Bank");
 
         boolean opened = pollFramesUntil(
                 () -> getWidgetManager().getBank().isVisible(),
-                BANK_OPEN_TIMEOUT
+                RandomUtils.uniformRandom(3500, 4500)
         );
 
         if (!opened) {

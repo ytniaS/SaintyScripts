@@ -23,11 +23,11 @@ public class ScriptOptions extends VBox {
         Label title = new Label("Libation Bowl Options");
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        sunfireBox = new CheckBox("Use Sunfire Splinters");
+        sunfireBox = new CheckBox("Use Sunfire Splinters/Sunfire Wine");
         sunfireBox.setStyle("-fx-font-size: 14px; -fx-text-fill: white;");
         sunfireBox.setSelected(loadSunfirePref());
 
-        bankedWineBox = new CheckBox("Use banked wines");
+        bankedWineBox = new CheckBox("Use Banked Wines/Sunfire Wines");
         bankedWineBox.setStyle("-fx-font-size: 14px; -fx-text-fill: white;");
         bankedWineBox.setSelected(loadBankedWinePref());
 

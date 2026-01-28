@@ -26,7 +26,7 @@ import java.util.Set;
 @ScriptDefinition(
         name = "LibationBowl",
         author = "Sainty",
-        version = 3.0,
+        version = 4.0,
         description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
         skillCategory = SkillCategory.PRAYER
 )
@@ -66,11 +66,6 @@ public class LibationBowl extends Script {
     private static final int MIN_PRAYER_POINTS = 2;
     private boolean shopPurchasing = false;
     private long shopPurchaseStarted = 0;
-    private static final long SHOP_PURCHASE_TIMEOUT_MS = 5000;
-    private static final long TRAVEL_COOLDOWN_MS = 4500;
-    private static final long WALK_COOLDOWN_MS = 3000;
-    private static final int BANK_OPEN_TIMEOUT_MIN = 1800;
-    private static final int BANK_OPEN_TIMEOUT_MAX = 3200;
 
     private static final String SCRIPT_NAME = "LibationBowl";
 
@@ -81,7 +76,6 @@ public class LibationBowl extends Script {
 
     private boolean useSunfire = false;
     private boolean useBankedWine = false;
-    private boolean sunfireProcessing = false;
 
     private XPTracker prayerXP;
     private WineShopInterface wineShop;
@@ -89,9 +83,50 @@ public class LibationBowl extends Script {
     private static final Set<Integer> INVENTORY_IDS = new HashSet<>();
     private static final Set<Integer> SHOP_WINE_IDS = new HashSet<>();
 
+    private enum SunfireState {
+        IDLE, SPLINTER_SELECTED, PROCESSING
+    }
+
+    private enum LibationTask {
+        BASK_AT_SHRINE,
+        HANDLE_WINE_SHOP,
+        USE_LIBATION_BOWL,
+        HANDLE_SUNFIRE,
+        BLESS_WINE,
+        ACQUIRE_WINE
+    }
+
+    private static class LibationContext {
+        final ItemGroupResult inv;
+        final Integer prayer;
+        final boolean shopVisible;
+        final long now;
+
+        LibationContext(ItemGroupResult inv, Integer prayer, boolean shopVisible, long now) {
+            this.inv = inv;
+            this.prayer = prayer;
+            this.shopVisible = shopVisible;
+            this.now = now;
+        }
+    }
+
+    private SunfireState sunfireState = SunfireState.IDLE;
+
 
     public LibationBowl(Object core) {
         super(core);
+    }
+
+    private long getTravelCooldown() {
+        return RandomUtils.uniformRandom(4000, 5000);
+    }
+
+    private long getWalkCooldown() {
+        return RandomUtils.uniformRandom(2500, 3500);
+    }
+
+    private long getShopPurchaseTimeout() {
+        return RandomUtils.uniformRandom(4500, 5500);
     }
 
     @Override
@@ -132,56 +167,141 @@ public class LibationBowl extends Script {
 
     @Override
     public int poll() {
+        handleHousekeeping();
+
+        if (travelOnCooldown()) return 0;
+
+        LibationContext ctx = collectContext();
+        if (ctx == null) return 0;
+
+        if (shouldStop(ctx)) {
+            stop();
+            return 0;
+        }
+
+        LibationTask task = decideTask(ctx);
+        if (task == null) return 0;
+
+        return executeTask(task, ctx);
+    }
+
+    private void handleHousekeeping() {
         Telemetry.tick(
                 SCRIPT_NAME,
                 scriptStartTime,
                 getPrayerXpGained(),
                 "prayer_xp_gained"
         );
+    }
 
+    private LibationContext collectContext() {
         Integer prayer = safePrayer();
-        if (prayer != null && prayer <= MIN_PRAYER_POINTS) {
-            baskAtShrine();
-            return 0;
+        boolean shopVisible = wineShop != null && wineShop.isVisible();
+        ItemGroupResult inv = shopVisible ? null : safeSearch(INVENTORY_IDS);
+        long now = System.currentTimeMillis();
+
+        return new LibationContext(inv, prayer, shopVisible, now);
+    }
+
+    private boolean shouldStop(LibationContext ctx) {
+        if (ctx.inv == null) {
+            return false;
+        }
+        return !ctx.inv.contains(COINS) || !ctx.inv.contains(BONE_SHARDS);
+    }
+
+    private LibationTask decideTask(LibationContext ctx) {
+        // Check prayer
+        if (ctx.prayer != null && ctx.prayer <= MIN_PRAYER_POINTS) {
+            return LibationTask.BASK_AT_SHRINE;
         }
 
-        if (travelOnCooldown()) return 0;
-
-        if (wineShop != null && wineShop.isVisible()) {
-            handleWineShop();
-            return 0;
+        // Handle shop if visible
+        if (ctx.shopVisible) {
+            return LibationTask.HANDLE_WINE_SHOP;
         }
 
-        ItemGroupResult inv = safeSearch(INVENTORY_IDS);
-        if (inv == null) return 0;
-
-        if (!inv.contains(COINS) || !inv.contains(BONE_SHARDS)) {
-            stop();
-            return 0;
+        if (ctx.inv == null) {
+            return null;
         }
 
-        if (sunfireProcessing &&
-                System.currentTimeMillis() - sunfireStartedAt > 12_000) {
-            sunfireProcessing = false;
+        // Use libation bowl if we have blessed wine
+        if (ctx.inv.contains(BLESSED_WINE) || ctx.inv.contains(BLESSED_SUNFIRE_WINE)) {
+            return LibationTask.USE_LIBATION_BOWL;
         }
 
-        if (inv.contains(BLESSED_WINE) || inv.contains(BLESSED_SUNFIRE_WINE)) {
-            useLibationBowl();
-            return 0;
+        // Handle sunfire conversion if enabled and possible
+        if (useSunfire && ctx.inv.contains(JUG_OF_WINE) && canMakeSunfire(ctx.inv)) {
+            return LibationTask.HANDLE_SUNFIRE;
+        } else {
+            sunfireState = SunfireState.IDLE;
         }
 
-        if (useSunfire && inv.contains(JUG_OF_WINE) && canMakeSunfire(inv)) {
-            convertToSunfireWine(inv);
-            return 0;
+        // Bless wine if we have unblessed wine
+        if (ctx.inv.contains(JUG_OF_WINE) || ctx.inv.contains(SUNFIRE_WINE)) {
+            return LibationTask.BLESS_WINE;
         }
 
-        if (inv.contains(JUG_OF_WINE) || inv.contains(SUNFIRE_WINE)) {
-            blessWine();
-            return 0;
+        // Acquire more wine
+        return LibationTask.ACQUIRE_WINE;
+    }
+
+    private int executeTask(LibationTask task, LibationContext ctx) {
+        return switch (task) {
+            case BASK_AT_SHRINE -> {
+                baskAtShrine();
+                yield 0;
+            }
+            case HANDLE_WINE_SHOP -> {
+                handleWineShop();
+                yield 0;
+            }
+            case USE_LIBATION_BOWL -> {
+                useLibationBowl();
+                yield 0;
+            }
+            case HANDLE_SUNFIRE -> {
+                handleSunfireState(ctx.inv);
+                yield 0;
+            }
+            case BLESS_WINE -> {
+                blessWine();
+                yield 0;
+            }
+            case ACQUIRE_WINE -> {
+                acquireMoreWine();
+                yield 0;
+            }
+        };
+    }
+
+    private void handleSunfireState(ItemGroupResult inv) {
+        // State 1: select splinter
+        if (sunfireState == SunfireState.IDLE) {
+            ItemSearchResult splinter = inv.getItem(SUNFIRE_SPLINTER);
+            if (splinter != null && splinter.interact()) {
+                sunfireState = SunfireState.SPLINTER_SELECTED;
+            }
+            return;
         }
 
-        acquireMoreWine();
-        return 0;
+        // State 2: select wine
+        if (sunfireState == SunfireState.SPLINTER_SELECTED) {
+            ItemSearchResult wine = inv.getItem(JUG_OF_WINE);
+            if (wine != null && wine.interact()) {
+                sunfireState = SunfireState.PROCESSING;
+                sunfireStartedAt = System.currentTimeMillis();
+            }
+            return;
+        }
+
+        // State 3: processing
+        if (sunfireState == SunfireState.PROCESSING) {
+            if (System.currentTimeMillis() - sunfireStartedAt > 12_000 ||
+                    !inv.contains(JUG_OF_WINE)) {
+                sunfireState = SunfireState.IDLE;
+            }
+        }
     }
 
     private long getPrayerXpGained() {
@@ -197,36 +317,6 @@ public class LibationBowl extends Script {
         return inv.contains(SUNFIRE_SPLINTER)
                 && inv.contains(PESTLE_AND_MORTAR)
                 && inv.contains(JUG_OF_WINE);
-    }
-
-    private void convertToSunfireWine(ItemGroupResult inv) {
-        ItemSearchResult splinter = inv.getItem(SUNFIRE_SPLINTER);
-        ItemSearchResult wine = inv.getItem(JUG_OF_WINE);
-        ItemSearchResult pestle = inv.getItem(PESTLE_AND_MORTAR);
-        if (splinter == null || wine == null || pestle == null) {
-            return;
-        }
-        // Already processing -> wait until all wine is gone
-        if (sunfireProcessing) {
-            if (inv.getItem(JUG_OF_WINE) == null) {
-                sunfireProcessing = false; // finished
-                log("LibationBowl", "Finished Sunfire wine batch");
-            }
-            return;
-        }
-        log("LibationBowl", "Starting Sunfire wine processing...");
-        if (!splinter.interact()) {
-            log("LibationBowl", "Failed selecting Sunfire Splinter");
-            return;
-        }
-        pollFramesHuman(() -> true, RandomUtils.gaussianRandom(200, 1500, 350, 350));
-        if (!wine.interact()) {
-            log("LibationBowl", "Failed applying splinter to wine");
-            return;
-        }
-        // START processing state ONCE
-        sunfireStartedAt = System.currentTimeMillis();
-        sunfireProcessing = true;
     }
 
     private void blessWine() {
@@ -276,8 +366,8 @@ public class LibationBowl extends Script {
     }
 
     private void triggerTravelCooldown() {
-        travelCooldownUntil = System.currentTimeMillis() + TRAVEL_COOLDOWN_MS;
-        walkCooldownUntil = System.currentTimeMillis() + WALK_COOLDOWN_MS;
+        travelCooldownUntil = System.currentTimeMillis() + getTravelCooldown();
+        walkCooldownUntil = System.currentTimeMillis() + getWalkCooldown();
     }
 
     private void useLibationBowl() {
@@ -478,7 +568,7 @@ public class LibationBowl extends Script {
             walkToArea(BARTENDER_AREA);
             return;
         }
-        if (!getFinger().tap(resized, "Trade")) {
+        if (!getFinger().tapGameScreen(resized, "Trade")) {
             return;
         }
         // Wait human-like for the shop to appear
@@ -487,7 +577,7 @@ public class LibationBowl extends Script {
 
     private void handleWineShop() {
         if (shopPurchasing) {
-            if (System.currentTimeMillis() - shopPurchaseStarted > SHOP_PURCHASE_TIMEOUT_MS) {
+            if (System.currentTimeMillis() - shopPurchaseStarted > getShopPurchaseTimeout()) {
                 log("LibationBowl", "Purchase timeout - resetting");
                 shopPurchasing = false;
                 return;
@@ -560,7 +650,7 @@ public class LibationBowl extends Script {
             walkToPosition(QUETZAL_TEOMAT);
             return;
         }
-        getFinger().tap(resized, "Travel");
+        getFinger().tapGameScreen(resized, "Travel");
         triggerTravelCooldown();
         // Small delay, then click Aldarin on the Quetzal map
         pollFramesHuman(() -> true, RandomUtils.gaussianRandom(500, 2500, 500, 500));
@@ -591,7 +681,7 @@ public class LibationBowl extends Script {
             walkToPosition(QUETZAL_ALDARIN);
             return;
         }
-        getFinger().tap(resized, "Travel");
+        getFinger().tapGameScreen(resized, "Travel");
         triggerTravelCooldown();
         // Small delay, then click Teomat on the Quetzal map
         pollFramesHuman(() -> true, RandomUtils.gaussianRandom(500, 2500, 500, 500));
@@ -647,7 +737,11 @@ public class LibationBowl extends Script {
 
         return pollFramesUntil(
                 () -> getWidgetManager().getBank().isVisible(),
-                RandomUtils.gaussianRandom(BANK_OPEN_TIMEOUT_MIN, BANK_OPEN_TIMEOUT_MAX, 350, 350)
+                RandomUtils.gaussianRandom(
+                        RandomUtils.uniformRandom(1500, 2000),
+                        RandomUtils.uniformRandom(3000, 3500),
+                        350, 350
+                )
         );
     }
 
@@ -666,7 +760,6 @@ public class LibationBowl extends Script {
             if (r != null) {
                 return r;
             }
-            // Frame-based retry delay instead of sleep, sleep is bad to use on OSMB scripts
             pollFramesHuman(() -> true, RandomUtils.gaussianRandom(100, 800, 200, 200));
         }
         return null;
@@ -689,7 +782,7 @@ public class LibationBowl extends Script {
                 .setWalkMethods(false, true)
                 .build();
         getWalker().walkTo(target, cfg);
-        walkCooldownUntil = System.currentTimeMillis() + WALK_COOLDOWN_MS;
+        walkCooldownUntil = System.currentTimeMillis() + getWalkCooldown();
     }
 
     private void walkToArea(Rectangle area) {

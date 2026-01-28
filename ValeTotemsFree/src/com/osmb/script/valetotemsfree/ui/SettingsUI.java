@@ -82,7 +82,6 @@ public class SettingsUI extends VBox {
 
         CheckBox logBasketBox = new CheckBox("Use Log Basket");
         logBasketBox.setSelected(savedBasket);
-        // Re-enabled - log basket support reintroduced
 
         ComboBox<LogType> logBox = new ComboBox<>();
         logBox.getItems().addAll(LogType.values());

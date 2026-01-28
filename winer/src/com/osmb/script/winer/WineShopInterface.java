@@ -21,7 +21,6 @@ import java.util.List;
 public class WineShopInterface extends ComponentCentered implements ItemGroup {
     private static final Rectangle TITLE_BOUNDS = new Rectangle(117, 6, 476, 23);
     private static final Rectangle CLOSE_BUTTON = new Rectangle(460, 7, 21, 21);
-    private static final int CLOSE_TIMEOUT = 3000;
     private static final int BUTTON_PADDING = 4;
 
     public WineShopInterface(ScriptCore core) {
@@ -73,7 +72,7 @@ public class WineShopInterface extends ComponentCentered implements ItemGroup {
 
         Rectangle closeBtn = bounds.getSubRectangle(CLOSE_BUTTON);
         core.getFinger().tap(closeBtn);
-        pollFramesUntil(() -> !isVisible(), CLOSE_TIMEOUT);
+        pollFramesUntil(() -> !isVisible(), RandomUtils.uniformRandom(2500, 3500));
     }
 
     public UIResult<Integer> getSelectedAmount() {

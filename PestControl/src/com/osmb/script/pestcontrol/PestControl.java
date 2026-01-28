@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
         name = "Dumb PestControl",
         author = "Sainty",
-        version = 3.2,
+        version = 4.0,
         description = "Dumb Pest control - fights monsters around the void knight",
         skillCategory = SkillCategory.COMBAT
 )
@@ -59,13 +59,6 @@ public class PestControl extends Script {
                     0
             );
 
-    private static final int BOARD_CLICK_COOLDOWN_MS = 3500;
-    private static final int BOARDING_TIMEOUT_MS = 95_000;
-    private static final int SCENE_STABLE_TIME_MS = 600;
-    private static final int RECOVER_COOLDOWN_MS = 1200;
-    private static final int WALK_COOLDOWN_MS = 1000;
-    private static final int WALK_COOLDOWN_LOBBY_MS = 1200;
-    private static final int RESULT_OBSERVE_TIME_MS = 2000;
     private static final int INSTANCE_SETTLE_MIN_MS = 4500;
     private static final int INSTANCE_SETTLE_MAX_MS = 6000;
     private static final int INSTANCE_SETTLE_MEAN_MS = 5100;
@@ -109,6 +102,32 @@ public class PestControl extends Script {
     private long scriptStartTime;
     private long lastTelemetryFlushMs = 0;
 
+    private long getBoardClickCooldown() {
+        return RandomUtils.uniformRandom(3000, 4000);
+    }
+
+    private long getBoardingTimeout() {
+        return RandomUtils.uniformRandom(90_000, 100_000);
+    }
+
+    private long getSceneStableTime() {
+        return RandomUtils.uniformRandom(500, 700);
+    }
+
+    private long getRecoverCooldown() {
+        return RandomUtils.uniformRandom(1000, 1400);
+    }
+
+    private long getWalkCooldown(boolean inLobby) {
+        return inLobby
+                ? RandomUtils.uniformRandom(1000, 1400)
+                : RandomUtils.uniformRandom(800, 1200);
+    }
+
+    private long getResultObserveTime() {
+        return RandomUtils.uniformRandom(1800, 2200);
+    }
+
     private enum Boat {
         NOVICE("Novice", new WorldPosition(2658, 2639, 0), 2),
         INTERMEDIATE("Intermediate", new WorldPosition(2643, 2644, 0), 3),
@@ -126,6 +145,25 @@ public class PestControl extends Script {
     }
 
     private Boat selectedBoat = Boat.NOVICE;
+
+    private enum PestControlTask {
+        HANDLE_GAME,
+        HANDLE_LOBBY,
+        WAIT_FOR_INSTANCE_SETTLE,
+        ENSURE_CORRECT_WORLD
+    }
+
+    private static class PestControlContext {
+        final WorldPosition position;
+        final int region;
+        final long now;
+
+        PestControlContext(WorldPosition position, int region, long now) {
+            this.position = position;
+            this.region = region;
+            this.now = now;
+        }
+    }
 
     public PestControl(Object core) {
         super(core);
@@ -155,7 +193,24 @@ public class PestControl extends Script {
 
     @Override
     public int poll() {
-        // Telemetry (threaded, non-blocking)
+        handleHousekeeping();
+
+        PestControlContext ctx = collectContext();
+        if (ctx == null) {
+            return RandomUtils.gaussianRandom(250, 350, 300, 25);
+        }
+
+        detectRegionTransition(ctx);
+
+        PestControlTask task = decideTask(ctx);
+        if (task == null) {
+            return RandomUtils.gaussianRandom(40, 80, 55, 10);
+        }
+
+        return executeTask(task, ctx);
+    }
+
+    private void handleHousekeeping() {
         long now = System.currentTimeMillis();
         if (now - lastTelemetryFlushMs >= TELEMETRY_INTERVAL_MS) {
             lastTelemetryFlushMs = now;
@@ -170,61 +225,85 @@ public class PestControl extends Script {
             t.setName("PestControl-telemetry");
             t.start();
         }
+    }
 
+    private PestControlContext collectContext() {
         WorldPosition me = getWorldPosition();
         if (me == null) {
-            return RandomUtils.gaussianRandom(250, 350, 300, 25);
+            return null;
         }
 
         int region = me.getRegionID();
+        long now = System.currentTimeMillis();
 
+        return new PestControlContext(me, region, now);
+    }
+
+    private void detectRegionTransition(PestControlContext ctx) {
         // Detect game end (game -> lobby transition)
-        if (lastRegion == REGION_GAME && region == REGION_LOBBY) {
+        if (lastRegion == REGION_GAME && ctx.region == REGION_LOBBY) {
             awaitingResult = true;
             resultProcessed = false;
-            awaitingResultStart = System.currentTimeMillis();
+            awaitingResultStart = ctx.now;
             boardingInProgress = false;
             inGame = true;
             winDetected = false;
             recoveringToCombat = false;
             recoverTarget = null;
         }
-        lastRegion = region;
+        lastRegion = ctx.region;
+    }
+
+    private PestControlTask decideTask(PestControlContext ctx) {
+        // Handle lobby region
+        if (ctx.region == REGION_LOBBY) {
+            if (ensureCorrectWorld()) {
+                return PestControlTask.ENSURE_CORRECT_WORLD;
+            }
+            return PestControlTask.HANDLE_LOBBY;
+        }
 
         // Handle game region
-        if (region == REGION_GAME) {
+        if (ctx.region == REGION_GAME) {
             if (!inGame) {
                 inGame = true;
                 instanceSettled = false;
-                instanceResolveUntil = System.currentTimeMillis() +
+                instanceResolveUntil = ctx.now +
                         RandomUtils.gaussianRandom(
                                 INSTANCE_SETTLE_MIN_MS,
                                 INSTANCE_SETTLE_MAX_MS,
                                 INSTANCE_SETTLE_MEAN_MS,
                                 INSTANCE_SETTLE_STDDEV_MS
                         );
-                return RandomUtils.gaussianRandom(250, 350, 300, 25);
+                return PestControlTask.WAIT_FOR_INSTANCE_SETTLE;
             }
 
             if (!instanceSettled) {
-                if (System.currentTimeMillis() < instanceResolveUntil) {
-                    return RandomUtils.gaussianRandom(250, 350, 300, 25);
+                if (ctx.now < instanceResolveUntil) {
+                    return PestControlTask.WAIT_FOR_INSTANCE_SETTLE;
                 }
                 instanceSettled = true;
             }
 
-            handleGame();
+            return PestControlTask.HANDLE_GAME;
         }
 
-        // Handle lobby region
-        if (region == REGION_LOBBY) {
-            if (ensureCorrectWorld()) {
-                return RandomUtils.gaussianRandom(500, 700, 600, 50);
+        return null;
+    }
+
+    private int executeTask(PestControlTask task, PestControlContext ctx) {
+        return switch (task) {
+            case HANDLE_GAME -> {
+                handleGame();
+                yield RandomUtils.gaussianRandom(40, 80, 55, 10);
             }
-            handleLobby();
-        }
-
-        return RandomUtils.gaussianRandom(40, 80, 55, 10);
+            case HANDLE_LOBBY -> {
+                handleLobby();
+                yield RandomUtils.gaussianRandom(40, 80, 55, 10);
+            }
+            case WAIT_FOR_INSTANCE_SETTLE -> RandomUtils.gaussianRandom(250, 350, 300, 25);
+            case ENSURE_CORRECT_WORLD -> RandomUtils.gaussianRandom(500, 700, 600, 50);
+        };
     }
 
     private void handleGame() {
@@ -255,7 +334,7 @@ public class PestControl extends Script {
                 return;
             }
 
-            if (System.currentTimeMillis() - lastRecoverAttempt < RECOVER_COOLDOWN_MS) {
+            if (System.currentTimeMillis() - lastRecoverAttempt < getRecoverCooldown()) {
                 return;
             }
 
@@ -346,7 +425,7 @@ public class PestControl extends Script {
         }
 
         long now = System.currentTimeMillis();
-        if (now - lastWalkAt < WALK_COOLDOWN_MS) {
+        if (now - lastWalkAt < getWalkCooldown(false)) {
             return true;
         }
 
@@ -386,7 +465,7 @@ public class PestControl extends Script {
 
         // If boarding in progress, check timeout
         if (boardingInProgress) {
-            if (System.currentTimeMillis() - boardingStart > BOARDING_TIMEOUT_MS) {
+            if (System.currentTimeMillis() - boardingStart > getBoardingTimeout()) {
                 boardingInProgress = false;
             }
             return;
@@ -410,7 +489,7 @@ public class PestControl extends Script {
         }
 
         // Cooldown check before clicking plank
-        if (System.currentTimeMillis() - lastBoardClick < BOARD_CLICK_COOLDOWN_MS) {
+        if (System.currentTimeMillis() - lastBoardClick < getBoardClickCooldown()) {
             return;
         }
 
@@ -489,7 +568,7 @@ public class PestControl extends Script {
         }
 
         long now = System.currentTimeMillis();
-        if (now - lastWalkAt < WALK_COOLDOWN_LOBBY_MS) {
+        if (now - lastWalkAt < getWalkCooldown(true)) {
             return true;
         }
 
@@ -552,7 +631,7 @@ public class PestControl extends Script {
         }
 
         if (foundWin ||
-                System.currentTimeMillis() - awaitingResultStart > RESULT_OBSERVE_TIME_MS) {
+                System.currentTimeMillis() - awaitingResultStart > getResultObserveTime()) {
             if (!winDetected) {
                 gamesLost++;
             }
@@ -572,7 +651,7 @@ public class PestControl extends Script {
             lastStableTime = System.currentTimeMillis();
             return false;
         }
-        return System.currentTimeMillis() - lastStableTime >= SCENE_STABLE_TIME_MS;
+        return System.currentTimeMillis() - lastStableTime >= getSceneStableTime();
     }
 
     private void trackDeath() {

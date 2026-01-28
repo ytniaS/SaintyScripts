@@ -30,11 +30,6 @@ public class BurnLogs extends Task {
             Pattern.CASE_INSENSITIVE
     );
 
-    private static final int AMOUNT_CHANGE_TIMEOUT_MS = 8000;
-    private static final int DIALOGUE_WAIT_TIMEOUT_MIN_MS = 5000;
-    private static final int DIALOGUE_WAIT_TIMEOUT_MAX_MS = 8000;
-    private static final int BURN_RUN_TIMEOUT_MS = 160000;
-
     public BurnLogs(Script script) {
         super(script);
     }
@@ -196,9 +191,9 @@ public class BurnLogs extends Task {
         screen.removeCanvasDrawable("bonfire");
         script.log(getClass(), "Waiting for use-log-on-fire dialogue...");
 
-        boolean dialogueAppeared = script.pollFramesUntil(() ->
-                        isDialogueVisible(),
-                uniformRandom(DIALOGUE_WAIT_TIMEOUT_MIN_MS, DIALOGUE_WAIT_TIMEOUT_MAX_MS)
+        boolean dialogueAppeared = script.pollFramesUntil(
+                this::isDialogueVisible,
+                uniformRandom(5000, 8000)
         );
         if (!dialogueAppeared) {
             script.log(getClass(), "Use-log-on-fire: dialogue did not appear - will retry");
@@ -277,14 +272,14 @@ public class BurnLogs extends Task {
                 lastChangeTime.set(System.currentTimeMillis());
             }
 
-            if (System.currentTimeMillis() - lastChangeTime.get() > AMOUNT_CHANGE_TIMEOUT_MS) {
+            if (System.currentTimeMillis() - lastChangeTime.get() > uniformRandom(7000, 9000)) {
                 script.log(getClass(), "Burn timeout - bonfire may have extinguished");
                 OneClick50FM.bonfirePosition = null;
                 return true;
             }
 
             return false;
-        }, BURN_RUN_TIMEOUT_MS, false, true);
+        }, uniformRandom(155000, 165000), false, true);
     }
 
     private Polygon getBonfireTile() {

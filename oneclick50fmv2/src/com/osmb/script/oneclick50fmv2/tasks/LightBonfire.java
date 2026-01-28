@@ -25,7 +25,6 @@ public class LightBonfire extends Task {
 
 
     private static final int FREE_SLOTS_MAX_TO_LIGHT = 2;
-    private static final int FIRE_LIT_TIMEOUT_MS = 15000;
 
     public LightBonfire(Script script) {
         super(script);
@@ -109,7 +108,7 @@ public class LightBonfire extends Task {
             if (script instanceof OneClick50FM) ((OneClick50FM) script).pumpChatbox();
             if (OneClick50FM.fireLitFromChat) return true;
             return fireObjectAtTile(lightPosition);
-        }, FIRE_LIT_TIMEOUT_MS);
+        }, uniformRandom(14000, 16000));
         OneClick50FM.fireLitFromChat = false;
 
         if (!lit) {

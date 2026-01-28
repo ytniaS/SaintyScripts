@@ -21,8 +21,6 @@ import static com.osmb.api.utils.RandomUtils.uniformRandom;
 
 public class ChopTrees extends Task {
 
-    private static final long TREE_BLACKLIST_TIMEOUT_MS = 10000;
-    private static final long LEVEL_CHECK_INTERVAL_MS = 5 * 60 * 1000;
     private static final int RESPAWN_WAIT_MIN_MS = 6000;
     private static final int RESPAWN_WAIT_MAX_MS = 10000;
     private static final int WALK_STABLE_MIN_MS = 1000;
@@ -44,6 +42,14 @@ public class ChopTrees extends Task {
         super(script);
     }
 
+    private long getTreeBlacklistTimeout() {
+        return uniformRandom(9000, 11000);
+    }
+
+    private long getLevelCheckInterval() {
+        return uniformRandom(4 * 60 * 1000, 6 * 60 * 1000);
+    }
+
     @Override
     public boolean activate() {
         if (!OneClick50FM.setupComplete) return false;
@@ -63,7 +69,7 @@ public class ChopTrees extends Task {
 
         long now = System.currentTimeMillis();
         boolean needTreePick = (OneClick50FM.selectedTree == null);
-        boolean intervalElapsed = (now - lastLevelCheckMs) >= LEVEL_CHECK_INTERVAL_MS;
+        boolean intervalElapsed = (now - lastLevelCheckMs) >= getLevelCheckInterval();
         if (needTreePick || intervalElapsed) {
             updateTreeSelection();
             lastLevelCheckMs = now;
@@ -374,8 +380,9 @@ public class ChopTrees extends Task {
 
     private void cleanBlacklist() {
         long now = System.currentTimeMillis();
+        long timeout = getTreeBlacklistTimeout();
         treeBlacklist.entrySet().removeIf(entry ->
-                now - entry.getValue() > TREE_BLACKLIST_TIMEOUT_MS
+                now - entry.getValue() > timeout
         );
     }
 }

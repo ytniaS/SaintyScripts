@@ -70,7 +70,7 @@ public class WineShopInterface extends ComponentCentered implements ItemGroup {
         }
         Rectangle closeBtn = bounds.getSubRectangle(CLOSE_BUTTON);
         core.getFinger().tap(closeBtn);
-        core.pollFramesHuman(() -> !isVisible(), 3000);
+        core.pollFramesHuman(() -> !isVisible(), RandomUtils.uniformRandom(2500, 3500));
     }
 
     public UIResult<Integer> getSelectedAmount() {
