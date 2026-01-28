@@ -33,8 +33,6 @@ public class BabaYagaRuneBuyer extends Script {
     private static final Font PAINT_FONT = new Font("Arial", Font.PLAIN, 13);
     private static final String SCRIPT_NAME = "BabaYagaRuneBuyer";
 
-    private static final int SHOP_OPEN_TIMEOUT_MIN = 3000;
-    private static final int SHOP_OPEN_TIMEOUT_MAX = 6000;
     private static final int MAX_NPC_DISTANCE = 6;
     private static final double TILE_CUBE_RESIZE = 0.6;
 
@@ -317,7 +315,11 @@ public class BabaYagaRuneBuyer extends Script {
             if (getFinger().tapGameScreen(resized, "Trade")) {
                 pollFramesHuman(
                         () -> shop.isVisible(),
-                        RandomUtils.gaussianRandom(SHOP_OPEN_TIMEOUT_MIN, SHOP_OPEN_TIMEOUT_MAX, 750, 750)
+                        RandomUtils.gaussianRandom(
+                                RandomUtils.uniformRandom(2500, 3500),
+                                RandomUtils.uniformRandom(5500, 6500),
+                                750, 750
+                        )
                 );
                 return;
             }

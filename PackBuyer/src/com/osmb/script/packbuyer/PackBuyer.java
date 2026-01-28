@@ -286,7 +286,7 @@ public class PackBuyer extends Script {
 
         closeShop();
 
-        boolean success = pollFramesUntil(() -> !shop.isVisible(), 2000);
+        boolean success = pollFramesUntil(() -> !shop.isVisible(), RandomUtils.uniformRandom(1800, 2200));
         if (!success) {
             log("Shop didn't close");
             return;

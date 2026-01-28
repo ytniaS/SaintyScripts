@@ -27,7 +27,7 @@ import java.util.List;
 @ScriptDefinition(
         name = "Bone Blesser",
         author = "Sainty",
-        version = 4.1,
+        version = 4.2,
         description = "Unnotes, blesses and chisels bones.",
         skillCategory = SkillCategory.PRAYER
 )
@@ -226,7 +226,6 @@ public class BoneBlesser extends Script {
 
     private void detectBoneType(ItemGroupResult inv) {
         if (inv == null) {
-            // Inventory search failed - don't reset bone type on temporary failures
             return;
         }
 
@@ -235,7 +234,26 @@ public class BoneBlesser extends Script {
             if (inventoryContainsBone(selectedBone, inv)) {
                 return;
             }
-            // Bone type disappeared then reset
+
+            // Bones not found in search - check if they exist but are selected/clicked
+            var invWidget = getWidgetManager().getInventory();
+            if (invWidget != null) {
+                ItemGroupResult notedSearch = invWidget.search(Collections.singleton(selectedBone.notedId));
+                ItemSearchResult noted = notedSearch != null ? notedSearch.getItem(selectedBone.notedId) : null;
+
+                ItemGroupResult unblessedSearch = invWidget.search(Collections.singleton(selectedBone.unblessedId));
+                ItemSearchResult unblessed = unblessedSearch != null ? unblessedSearch.getItem(selectedBone.unblessedId) : null;
+
+                ItemGroupResult blessedSearch = invWidget.search(Collections.singleton(selectedBone.blessedId));
+                ItemSearchResult blessed = blessedSearch != null ? blessedSearch.getItem(selectedBone.blessedId) : null;
+
+                // If any bone exists (even if selected), don't reset bone type
+                if (noted != null || unblessed != null || blessed != null) {
+                    return;
+                }
+            }
+
+            // Only reset if we're not moving and bones aren't selected
             if (!recentlyMoved()) {
                 log("BoneBlesser", "Bone type changed — re-detecting");
                 selectedBone = null;
@@ -337,6 +355,8 @@ public class BoneBlesser extends Script {
     }
 
     private BoneContext collectContext() {
+        getWidgetManager().getInventory().unSelectItemIfSelected();
+
         ItemGroupResult inv = getWidgetManager().getInventory().search(INV_IDS);
         if (inv == null) {
             return null;
@@ -353,15 +373,19 @@ public class BoneBlesser extends Script {
         }
 
         long now = System.currentTimeMillis();
-        ItemSearchResult noted = getWidgetManager().getInventory()
-                .search(Collections.singleton(selectedBone.notedId))
-                .getItem(selectedBone.notedId);
-        ItemSearchResult unblessed = getWidgetManager().getInventory()
-                .search(Collections.singleton(selectedBone.unblessedId))
-                .getItem(selectedBone.unblessedId);
-        ItemSearchResult blessed = getWidgetManager().getInventory()
-                .search(Collections.singleton(selectedBone.blessedId))
-                .getItem(selectedBone.blessedId);
+        // Search for bones - handle null results safely (can happen if items are selected)
+        ItemGroupResult notedSearch = getWidgetManager().getInventory()
+                .search(Collections.singleton(selectedBone.notedId));
+        ItemSearchResult noted = notedSearch != null ? notedSearch.getItem(selectedBone.notedId) : null;
+
+        ItemGroupResult unblessedSearch = getWidgetManager().getInventory()
+                .search(Collections.singleton(selectedBone.unblessedId));
+        ItemSearchResult unblessed = unblessedSearch != null ? unblessedSearch.getItem(selectedBone.unblessedId) : null;
+
+        ItemGroupResult blessedSearch = getWidgetManager().getInventory()
+                .search(Collections.singleton(selectedBone.blessedId));
+        ItemSearchResult blessed = blessedSearch != null ? blessedSearch.getItem(selectedBone.blessedId) : null;
+
         ItemSearchResult chisel = inv.getItem(CHISEL_ID);
         WorldPosition position = getWorldPosition();
 
