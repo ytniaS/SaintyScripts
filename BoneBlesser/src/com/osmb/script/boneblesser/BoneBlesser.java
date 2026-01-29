@@ -27,7 +27,7 @@ import java.util.List;
 @ScriptDefinition(
         name = "Bone Blesser",
         author = "Sainty",
-        version = 4.2,
+        version = 4.3,
         description = "Unnotes, blesses and chisels bones.",
         skillCategory = SkillCategory.PRAYER
 )
@@ -355,7 +355,11 @@ public class BoneBlesser extends Script {
     }
 
     private BoneContext collectContext() {
-        getWidgetManager().getInventory().unSelectItemIfSelected();
+        // Unselect when idle so chisel doesn't stay stuck when selected but no bones remain.
+        // Skip when chisel is selected (CLICKED_CHISEL) so we don't deselect before clicking a bone.
+        if (chiselState != ChiselState.CLICKED_CHISEL) {
+            getWidgetManager().getInventory().unSelectItemIfSelected();
+        }
 
         ItemGroupResult inv = getWidgetManager().getInventory().search(INV_IDS);
         if (inv == null) {
