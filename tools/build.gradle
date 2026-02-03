@@ -17,6 +17,9 @@ project(":tools") {
         mainClass = "com.sainty.common.ProjectScriptVersionExtractor"
         args rootProject.projectDir.absolutePath
 
+        // Run with project Java 17 toolchain so we don't get UnsupportedClassVersionError when Gradle runs on Java 11
+        javaLauncher = project.javaToolchains.launcherFor(project.java.toolchain)
+
         doFirst {
             def scriptProjects = rootProject.subprojects.findAll {
                 it.name != "tools"

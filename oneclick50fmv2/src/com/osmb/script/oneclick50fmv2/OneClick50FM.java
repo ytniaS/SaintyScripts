@@ -15,6 +15,7 @@ import com.osmb.script.oneclick50fmv2.tasks.ChopTrees;
 import com.osmb.script.oneclick50fmv2.tasks.LightBonfire;
 import com.osmb.script.oneclick50fmv2.tasks.Setup;
 import com.osmb.script.oneclick50fmv2.utils.Task;
+import com.sainty.common.VersionChecker;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -25,7 +26,7 @@ import java.util.List;
 @ScriptDefinition(
         name = "OneClick 50 FM V2",
         description = "Oneclick 1-50 Firemaking at Castle Wars",
-        version = 2.0,
+        version = 2.1,
         author = "Sainty",
         skillCategory = SkillCategory.FIREMAKING
 )
@@ -65,6 +66,10 @@ public class OneClick50FM extends Script {
 
     @Override
     public void onStart() {
+        if (!VersionChecker.isExactVersion(this)) {
+            stop();
+            return;
+        }
         log(getClass(), "Starting 1-50 Firemaking at Castle Wars");
         forceNewLightPosition = false;
 

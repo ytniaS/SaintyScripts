@@ -146,42 +146,26 @@ public class BurnLogs extends Task {
                 canvas.drawPolygon(bonfireTapPoly, Color.GREEN.getRGB(), 1)
         );
 
-        boolean tapped = finger.tapGameScreen(bonfireTapPoly);
-        if (!tapped) {
-            String logName = getLogName(log.getId());
-            String[] tryStrings = {
-                    "Use " + logName + " -> Forester's Campfire",
-                    "Use " + logName + " -> Fire",
-                    "Forester's Campfire",
-                    "Fire"
-            };
-            for (String s : tryStrings) {
-                if (finger.tapGameScreen(bonfireTapPoly, s)) {
-                    tapped = true;
-                    break;
-                }
+        // Only accept "Use [Logs/Oak logs/Willow logs] -> Fire" or "-> Forester's Campfire". Prefer Fire first (initial fire), then Forester's Campfire.
+        String logName = getLogName(log.getId());
+        String useOnFire = "Use " + logName + " -> Fire";
+        String useOnForester = "Use " + logName + " -> Forester's Campfire";
+        MenuHook useLogOnFireOnlyHook = entries -> {
+            if (entries == null) return null;
+            for (MenuEntry entry : entries) {
+                String text = entry.getRawText();
+                if (text == null) continue;
+                String t = text.trim();
+                if (t.equalsIgnoreCase(useOnFire)) return entry;
+                if (t.equalsIgnoreCase(useOnForester)) return entry;
+                if (USE_LOG_PATTERN.matcher(t).matches()) return entry;
             }
-        }
-        if (!tapped) {
-            MenuHook hook = entries -> {
-                if (entries == null) return null;
-                MenuEntry forester = null;
-                MenuEntry fire = null;
-                for (MenuEntry entry : entries) {
-                    String text = entry.getRawText();
-                    if (text == null) continue;
-                    String t = text.trim().toLowerCase();
-                    if (t.equals("fire")) fire = entry;
-                    else if (t.contains("forester") && t.contains("campfire")) forester = entry;
-                    else if (USE_LOG_PATTERN.matcher(text.trim()).matches()) {
-                        if (t.contains("forester")) forester = entry;
-                        else if (fire == null) fire = entry;
-                    }
-                }
-                return forester != null ? forester : fire;
-            };
-            tapped = finger.tapGameScreen(bonfireTapPoly, hook);
-        }
+            return null;
+        };
+
+        boolean tapped = finger.tapGameScreen(bonfireTapPoly, useOnFire)
+                || finger.tapGameScreen(bonfireTapPoly, useOnForester)
+                || finger.tapGameScreen(bonfireTapPoly, useLogOnFireOnlyHook);
 
         if (!tapped) {
             screen.removeCanvasDrawable("bonfire");

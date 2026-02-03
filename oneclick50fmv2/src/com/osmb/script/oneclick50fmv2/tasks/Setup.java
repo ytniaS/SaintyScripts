@@ -5,10 +5,13 @@ import com.osmb.api.item.ItemID;
 import com.osmb.api.location.position.types.WorldPosition;
 import com.osmb.api.script.Script;
 import com.osmb.api.ui.component.tabs.skill.SkillType;
+import com.osmb.api.ui.component.tabs.SettingsTabComponent;
 import com.osmb.script.oneclick50fmv2.OneClick50FM;
 import com.osmb.script.oneclick50fmv2.utils.Task;
 
 import java.util.Set;
+
+import static com.osmb.api.utils.RandomUtils.gaussianRandom;
 
 public class Setup extends Task {
 
@@ -24,6 +27,8 @@ public class Setup extends Task {
     @Override
     public boolean execute() {
         script.log(getClass(), "SETUP START");
+
+        ensureMaxZoom();
 
         var wm = script.getWidgetManager();
         if (wm == null) {
@@ -91,5 +96,32 @@ public class Setup extends Task {
         OneClick50FM.setupComplete = true;
 
         return true;
+    }
+
+    /** Ensure max zoom-out so clicking is accurate and bonfire/fire can be reached. */
+    private void ensureMaxZoom() {
+        var wm = script.getWidgetManager();
+        if (wm == null) return;
+        var settings = wm.getSettings();
+        if (settings == null) return;
+        if (!settings.openSubTab(SettingsTabComponent.SettingsSubTabType.DISPLAY_TAB)) {
+            script.log(getClass(), "Failed to open display settings tab");
+            return;
+        }
+        var zoomResult = settings.getZoomLevel();
+        Integer zoom = zoomResult != null ? zoomResult.get() : null;
+        if (zoom == null) {
+            script.log(getClass(), "Failed to read zoom level");
+            return;
+        }
+        script.log(getClass(), "Current zoom level: " + zoom);
+        if (zoom > 1) {
+            if (settings.setZoomLevel(0)) {
+                script.log(getClass(), "Zoom set to maximum (0 = max zoom out)");
+                script.pollFramesHuman(() -> true, gaussianRandom(300, 2000, 425, 425));
+            } else {
+                script.log(getClass(), "Failed to set zoom level");
+            }
+        }
     }
 }
