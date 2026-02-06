@@ -18,7 +18,7 @@ import java.util.Map;
 @ScriptDefinition(
         name = "Vale Totems Free",
         author = "Sainty",
-        version = 3.0,
+        version = 3.1,
         description = "Free Script for vale totems minigame.",
         skillCategory = SkillCategory.FLETCHING
 )

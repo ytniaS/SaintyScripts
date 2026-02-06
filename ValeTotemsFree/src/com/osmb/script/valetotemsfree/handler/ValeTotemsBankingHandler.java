@@ -558,6 +558,23 @@ public class ValeTotemsBankingHandler {
             return true;
         }
 
+        // Have enough bows but no/few logs (e.g. over-fletched before Buffalo) — withdraw minimum logs only
+        if (currentBows >= REQUIRED_BOWS_BUFFALO && currentLogs < REQUIRED_LOGS_AUBURNVALE) {
+            ItemGroupResult logResult = context.getScript().getWidgetManager().getBank().search(Set.of(context.getSelectedLogId()));
+            if (logResult == null || logResult.getAmount(new int[]{context.getSelectedLogId()}) <= 0) {
+                log("No logs in bank.");
+                context.getScript().stop();
+                return false;
+            }
+            context.getScript().getWidgetManager().getBank().withdraw(context.getSelectedLogId(), INVENTORY_SIZE);
+            boolean logsWithdrawn = context.getScript().pollFramesUntil(() -> getItemCount(context.getSelectedLogId()) >= REQUIRED_LOGS_AUBURNVALE, getBankWithdrawTimeout(), false, false);
+            if (!logsWithdrawn) {
+                log("Failed to withdraw logs at Buffalo bank (have enough bows, needed minimum logs)");
+                return false;
+            }
+            return true;
+        }
+
         // Need to fletch more bows
         int bowsNeeded = REQUIRED_BOWS_BUFFALO - currentBows;
         // Calculate logs needed: 1 log = 1 bow
