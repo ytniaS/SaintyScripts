@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
         name = "Dumb PestControl",
         author = "Sainty",
-        version = 4.0,
+        version = 4.1,
         description = "Dumb Pest control - fights monsters around the void knight",
         skillCategory = SkillCategory.COMBAT
 )
@@ -48,6 +48,13 @@ public class PestControl extends Script {
             new WorldPosition(2656, 2592, 0);
     private static final WorldPosition SQUIRE_TILE =
             new WorldPosition(2655, 2607, 0);
+    private static final List<WorldPosition> GATE_SIDE_TILES = List.of(
+            new WorldPosition(2656, 2592, 0),
+            new WorldPosition(2654, 2592, 0),
+            new WorldPosition(2658, 2592, 0),
+            new WorldPosition(2656, 2590, 0),
+            new WorldPosition(2656, 2594, 0)
+    );
     private static final int EDGE_BUFFER = 2;
 
     private static final RectangleArea SAFE_COMBAT_AREA =
@@ -101,6 +108,9 @@ public class PestControl extends Script {
     private long startTime;
     private long scriptStartTime;
     private long lastTelemetryFlushMs = 0;
+    private long lastGateInteraction = 0;
+    private static final long GATE_COOLDOWN_MS = 8000;
+    private static final long WALK_GRACE_MS = 12_000;
 
     private long getBoardClickCooldown() {
         return RandomUtils.uniformRandom(3000, 4000);
@@ -324,12 +334,20 @@ public class PestControl extends Script {
             recoverTarget = null;
         }
 
-        // If outside safe area, walk back
+        // If outside safe area, walk back (gate is closed by default so pathfinding fails past it)
         if (!SAFE_COMBAT_AREA.contains(me)) {
             attacking = false;
             targetOverlay = null;
 
             if (recoveringToCombat) {
+                if (tryInteractWithGate()) {
+                    return;
+                }
+                boolean clickedThroughGate = tryClickTileThroughGate();
+                if (clickedThroughGate) {
+                    lastWalkAt = System.currentTimeMillis();
+                    return;
+                }
                 tryWalkInsideCombatArea(recoverTarget != null ? recoverTarget : randomIn(VOID_KNIGHT_RECT));
                 return;
             }
@@ -341,6 +359,14 @@ public class PestControl extends Script {
             lastRecoverAttempt = System.currentTimeMillis();
             recoverTarget = randomIn(VOID_KNIGHT_RECT);
             recoveringToCombat = true;
+            if (tryInteractWithGate()) {
+                return;
+            }
+            boolean clickedThroughGate = tryClickTileThroughGate();
+            if (clickedThroughGate) {
+                lastWalkAt = System.currentTimeMillis();
+                return;
+            }
             tryWalkInsideCombatArea(recoverTarget);
             return;
         }
@@ -410,6 +436,82 @@ public class PestControl extends Script {
         return false;
     }
 
+    private boolean tryInteractWithGate() {
+        long now = System.currentTimeMillis();
+        if (now - lastGateInteraction < GATE_COOLDOWN_MS) {
+            return false;
+        }
+        if (now - lastWalkAt < WALK_GRACE_MS) {
+            return false;
+        }
+        WorldPosition me = getWorldPosition();
+        if (me == null || !COMBAT_AREA.contains(me)) {
+            return false;
+        }
+        if (SAFE_COMBAT_AREA.contains(me)) {
+            return false;
+        }
+        var wm = getWidgetManager();
+        if (wm == null) {
+            return false;
+        }
+        RSObject gate = getObjectManager().getObjects(obj ->
+                        obj != null && obj.getName() != null
+                                && obj.getName().toLowerCase().contains("gate")
+                ).stream()
+                .filter(obj -> obj.getWorldPosition() != null && me.distanceTo(obj.getWorldPosition()) <= 10)
+                .min(Comparator.comparingDouble(obj -> me.distanceTo(obj.getWorldPosition())))
+                .orElse(null);
+        if (gate == null) {
+            return false;
+        }
+        WorldPosition gatePos = gate.getWorldPosition();
+        Polygon poly = getSceneProjector().getTileCube(gatePos, 75);
+        if (poly == null) {
+            return false;
+        }
+        Polygon click = poly.getResized(0.7);
+        if (click == null || click.getBounds() == null) {
+            return false;
+        }
+        if (!wm.insideGameScreen(click, Collections.emptyList())) {
+            return false;
+        }
+        if (getFinger().tapGameScreen(click, "Open gate")) {
+            lastGateInteraction = now;
+            return true;
+        }
+        return false;
+    }
+
+
+    private boolean tryClickTileThroughGate() {
+        var wm = getWidgetManager();
+        if (wm == null) {
+            return false;
+        }
+        for (WorldPosition tile : GATE_SIDE_TILES) {
+            if (!SAFE_COMBAT_AREA.contains(tile)) {
+                continue;
+            }
+            Polygon poly = getSceneProjector().getTileCube(tile, 50);
+            if (poly == null) {
+                continue;
+            }
+            Polygon click = poly.getResized(0.35);
+            if (click == null || click.getBounds() == null) {
+                continue;
+            }
+            if (!wm.insideGameScreen(click, Collections.emptyList())) {
+                continue;
+            }
+            if (getFinger().tapGameScreen(click, "Walk here")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean tryWalkInsideCombatArea(WorldPosition target) {
         if (!instanceSettled || target == null) {
             return false;
@@ -443,6 +545,8 @@ public class PestControl extends Script {
         boolean issued = getWalker().walkTo(finalTarget, cfg);
         if (issued) {
             lastWalkAt = now;
+        } else {
+            tryInteractWithGate();
         }
 
         return issued;
