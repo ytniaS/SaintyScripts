@@ -26,7 +26,7 @@ import java.util.Set;
 @ScriptDefinition(
         name = "LibationBowl",
         author = "Sainty",
-        version = 4.0,
+        version = 4.1,
         description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
         skillCategory = SkillCategory.PRAYER
 )
@@ -79,6 +79,7 @@ public class LibationBowl extends Script {
 
     private XPTracker prayerXP;
     private WineShopInterface wineShop;
+    private QuetzalMapInterface quetzalMap;
 
     private static final Set<Integer> INVENTORY_IDS = new HashSet<>();
     private static final Set<Integer> SHOP_WINE_IDS = new HashSet<>();
@@ -160,6 +161,9 @@ public class LibationBowl extends Script {
 
         wineShop = new WineShopInterface(this);
         getWidgetManager().getInventory().registerInventoryComponent(wineShop);
+
+        quetzalMap = new QuetzalMapInterface(this);
+        getWidgetManager().getInventory().registerInventoryComponent(quetzalMap);
 
         log("LibationBowl",
                 "Started. Sunfire=" + useSunfire + ", BankedWine=" + useBankedWine);
@@ -652,9 +656,13 @@ public class LibationBowl extends Script {
         }
         getFinger().tapGameScreen(resized, "Travel");
         triggerTravelCooldown();
-        // Small delay, then click Aldarin on the Quetzal map
         pollFramesHuman(() -> true, RandomUtils.gaussianRandom(500, 2500, 500, 500));
-        getFinger().tap(randomPointIn(ALDARIN_RECT));
+        Point aldarinClick = quetzalMap != null && quetzalMap.isVisible() ? quetzalMap.getAldarinClickPoint() : null;
+        if (aldarinClick != null) {
+            getFinger().tap(aldarinClick);
+        } else {
+            getFinger().tap(randomPointIn(ALDARIN_RECT));
+        }
         triggerTravelCooldown();
     }
 
@@ -683,9 +691,13 @@ public class LibationBowl extends Script {
         }
         getFinger().tapGameScreen(resized, "Travel");
         triggerTravelCooldown();
-        // Small delay, then click Teomat on the Quetzal map
         pollFramesHuman(() -> true, RandomUtils.gaussianRandom(500, 2500, 500, 500));
-        getFinger().tap(randomPointIn(TEOMAT_RECT));
+        Point teomatClick = quetzalMap != null && quetzalMap.isVisible() ? quetzalMap.getTeomatClickPoint() : null;
+        if (teomatClick != null) {
+            getFinger().tap(teomatClick);
+        } else {
+            getFinger().tap(randomPointIn(TEOMAT_RECT));
+        }
         triggerTravelCooldown();
     }
 
