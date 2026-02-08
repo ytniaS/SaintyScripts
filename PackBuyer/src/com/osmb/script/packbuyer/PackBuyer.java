@@ -23,8 +23,8 @@ import java.util.Set;
 @ScriptDefinition(
         name = "Pack Buyer",
         author = "Sainty",
-        version = 2.1,
-        description = "Buys and opens feather packs or broad arrowhead packs using base stock logic",
+        version = 2.2,
+        threadUrl = "https://wiki.osmb.co.uk/article/saintys-pack-buyer",
         skillCategory = SkillCategory.OTHER
 )
 public class PackBuyer extends Script {

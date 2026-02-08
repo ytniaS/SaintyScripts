@@ -25,8 +25,8 @@ import java.util.List;
 
 @ScriptDefinition(
         name = "OneClick 50 FM V2",
-        description = "Oneclick 1-50 Firemaking at Castle Wars",
-        version = 2.1,
+        threadUrl = "https://wiki.osmb.co.uk/article/saintys-one-click-50-fm",
+        version = 2.2,
         author = "Sainty",
         skillCategory = SkillCategory.FIREMAKING
 )

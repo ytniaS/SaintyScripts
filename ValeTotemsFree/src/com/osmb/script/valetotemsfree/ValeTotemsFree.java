@@ -18,8 +18,8 @@ import java.util.Map;
 @ScriptDefinition(
         name = "Vale Totems Free",
         author = "Sainty",
-        version = 3.1,
-        description = "Free Script for vale totems minigame.",
+        version = 3.2,
+        threadUrl = "https://wiki.osmb.co.uk/article/saintys-vale-totems",
         skillCategory = SkillCategory.FLETCHING
 )
 

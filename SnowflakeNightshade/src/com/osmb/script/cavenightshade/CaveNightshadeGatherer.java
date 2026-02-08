@@ -21,8 +21,8 @@ import java.util.Set;
 @ScriptDefinition(
         name = "Cave Nightshade Gatherer",
         author = "Sainty",
-        version = 3.0,
-        description = "Gathers Cave Nightshade and banks it for snowflakes.",
+        version = 3.1,
+        threadUrl = "https://wiki.osmb.co.uk/article/saintys-cave-nightshade-gatherer",
         skillCategory = SkillCategory.OTHER
 )
 public class CaveNightshadeGatherer extends Script {

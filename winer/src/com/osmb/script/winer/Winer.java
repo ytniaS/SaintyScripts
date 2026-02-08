@@ -22,8 +22,8 @@ import java.util.Set;
 @ScriptDefinition(
         name = "Winer",
         author = "Sainty",
-        version = 3.0,
-        description = "Buys wines or mixes them with Sunfire splinters.",
+        version = 3.1,
+        threadUrl = "https://wiki.osmb.co.uk/article/saintys-winer",
         skillCategory = SkillCategory.OTHER
 )
 public class Winer extends Script {

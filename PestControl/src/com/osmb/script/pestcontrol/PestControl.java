@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
 @ScriptDefinition(
         name = "Dumb PestControl",
         author = "Sainty",
-        version = 4.1,
-        description = "Dumb Pest control - fights monsters around the void knight",
+        version = 4.2,
+        threadUrl = "https://wiki.osmb.co.uk/article/saintys-dumb-pest-control-",
         skillCategory = SkillCategory.COMBAT
 )
 public class PestControl extends Script {

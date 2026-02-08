@@ -22,8 +22,8 @@ import java.util.List;
 @ScriptDefinition(
         name = "BabaYaga Rune Buyer",
         author = "Sainty",
-        version = 2.0,
-        description = "Buys runes from Baba Yaga using base stock logic",
+        version = 2.1,
+        threadUrl = "https://wiki.osmb.co.uk/article/saintys-baba-yaga-rune-buyer",
         skillCategory = SkillCategory.OTHER
 )
 public class BabaYagaRuneBuyer extends Script {

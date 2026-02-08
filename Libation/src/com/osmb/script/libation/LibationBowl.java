@@ -26,8 +26,8 @@ import java.util.Set;
 @ScriptDefinition(
         name = "LibationBowl",
         author = "Sainty",
-        version = 4.1,
-        description = "Buys wine, optionally converts to Sunfire wine, blesses, sacrifices, banks jugs.",
+        version = 4.2,
+        threadUrl = "https://wiki.osmb.co.uk/article/saintys-libation-bowl",
         skillCategory = SkillCategory.PRAYER
 )
 public class LibationBowl extends Script {

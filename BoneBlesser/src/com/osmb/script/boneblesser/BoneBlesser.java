@@ -27,8 +27,8 @@ import java.util.List;
 @ScriptDefinition(
         name = "Bone Blesser",
         author = "Sainty",
-        version = 4.3,
-        description = "Unnotes, blesses and chisels bones.",
+        version = 4.4,
+        threadUrl = "https://wiki.osmb.co.uk/article/saintys-bone-blesser",
         skillCategory = SkillCategory.PRAYER
 )
 public class BoneBlesser extends Script {
